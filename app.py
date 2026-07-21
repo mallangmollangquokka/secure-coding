@@ -13,6 +13,8 @@ from flask_wtf import CSRFProtect
 from flask_wtf.csrf import CSRFError
 from werkzeug.middleware.proxy_fix import ProxyFix
 
+from security import validate_password
+
 load_dotenv()
 
 if 'SECRET_KEY' not in os.environ:
@@ -201,24 +203,30 @@ def register():
         if not USERNAME_RE.match(username):
             flash('사용자명은 영문, 숫자, 밑줄(_)로 이루어진 4~20자여야 합니다.')
             return render_template('register.html')
-        if len(password) < 8:
-            flash('비밀번호는 최소 8자 이상이어야 합니다.')
+        password_errors = validate_password(password)
+        if password_errors:
+            flash('비밀번호 조건을 만족하지 않습니다 (' + ', '.join(password_errors) + ').')
             return render_template('register.html')
 
         db = get_db()
         cursor = db.cursor()
-        # 중복 사용자 체크
+        # 중복 사용자 체크 (모든 검증을 통과한 뒤에만 DB를 조회/기록한다)
         cursor.execute("SELECT * FROM user WHERE username = ?", (username,))
         if cursor.fetchone() is not None:
             flash('이미 존재하는 사용자명입니다.')
             return redirect(url_for('register'))
         user_id = str(uuid.uuid4())
         password_hash = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
-        cursor.execute(
-            "INSERT INTO user (id, username, password, created_at) VALUES (?, ?, ?, ?)",
-            (user_id, username, password_hash, utcnow_str())
-        )
-        db.commit()
+        try:
+            cursor.execute(
+                "INSERT INTO user (id, username, password, created_at) VALUES (?, ?, ?, ?)",
+                (user_id, username, password_hash, utcnow_str())
+            )
+            db.commit()
+        except sqlite3.IntegrityError:
+            # 동시에 같은 username으로 가입 요청이 들어온 경우(TOCTOU) 대비
+            flash('이미 존재하는 사용자명입니다.')
+            return redirect(url_for('register'))
         flash('회원가입이 완료되었습니다. 로그인 해주세요.')
         return redirect(url_for('login'))
     return render_template('register.html')
