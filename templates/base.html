@@ -83,6 +83,26 @@
       margin-bottom: 10px;
       background-color: #fafafa;
     }
+    /* nav 안에서 로그아웃 버튼이 링크처럼 보이도록 */
+    .nav-form-btn {
+      display: inline;
+      width: auto;
+      padding: 0;
+      margin: 0 15px 0 0;
+      border: none;
+      background: none;
+      color: #555;
+      font-weight: 500;
+      font-size: inherit;
+      font-family: inherit;
+      cursor: pointer;
+      text-decoration: none;
+    }
+    .nav-form-btn:hover {
+      background: none;
+      color: #333;
+      text-decoration: underline;
+    }
   </style>
 </head>
 <body>
@@ -91,7 +111,10 @@
       <a href="{{ url_for('dashboard') }}">대시보드</a>
       <a href="{{ url_for('profile') }}">프로필</a>
       <a href="{{ url_for('report') }}">신고하기</a>
-      <a href="{{ url_for('logout') }}">로그아웃</a>
+      <form method="post" action="{{ url_for('logout') }}" style="display: inline;">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button type="submit" class="nav-form-btn">로그아웃</button>
+      </form>
     {% else %}
       <a href="{{ url_for('login') }}">로그인</a>
       <a href="{{ url_for('register') }}">회원가입</a>
