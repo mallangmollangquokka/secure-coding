@@ -69,7 +69,7 @@ ngrok http 5000
 이 프로젝트는 Render 무료 티어에 배포하는 것을 기준으로 안내합니다. GitHub 저장소를 Render에 연결하면 아래 설정만으로 자동 빌드/배포되며, HTTPS가 자동으로 적용됩니다.
 
 - **Build Command**: `pip install -r requirements.txt`
-- **Start Command**: `gunicorn --worker-class eventlet -w 1 --bind 0.0.0.0:$PORT app:app`
+- **Start Command**: `gunicorn --worker-class geventwebsocket.gunicorn.workers.GeventWebSocketWorker -w 1 --bind 0.0.0.0:$PORT app:app`
   - `--bind 0.0.0.0:$PORT`를 반드시 포함해야 합니다. 포트 바인딩이 누락되면 서비스가 뜬 것처럼 보여도 실제로는 요청에 응답하지 않는 상태가 됩니다.
 - **환경변수**: `.env` 파일을 업로드하지 말고, Render 대시보드의 Environment Variables에 아래 값을 직접 입력하세요.
   - `SECRET_KEY`

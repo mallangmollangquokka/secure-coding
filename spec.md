@@ -300,8 +300,8 @@ secure-coding-main/
 - **상시 배포: Render 무료 티어로 확정.** GitHub repo 연결만으로 자동 빌드/배포, HTTPS 자동 적용, 카드 등록 불필요
 - **필수 코드 변경사항**:
   - `init_db()` 호출을 `if __name__ == '__main__':` 블록 밖(모듈 최상단)으로 이동 — gunicorn이 `app.py`를 모듈로 import할 때는 `__name__`이 `'__main__'`이 아니므로, 이 블록 안에만 두면 gunicorn 환경에서 `init_db()`가 전혀 실행되지 않음 (Phase 1 프롬프트 A-6 항목)
-  - `requirements.txt`에 `gunicorn`, `eventlet` 추가
-  - Start Command: `gunicorn --worker-class eventlet -w 1 --bind 0.0.0.0:$PORT app:app` (`$PORT` 바인딩 누락 시 서비스가 뜬 것처럼 보여도 응답 없음)
+  - `requirements.txt`에 `gunicorn`, `gevent`, `gevent-websocket` 추가 (Python 3.13에서 eventlet 호환 문제로 gevent로 전환)
+  - Start Command: `gunicorn --worker-class geventwebsocket.gunicorn.workers.GeventWebSocketWorker -w 1 --bind 0.0.0.0:$PORT app:app` (`$PORT` 바인딩 누락 시 서비스가 뜬 것처럼 보여도 응답 없음)
 - **환경변수**: `.env` 파일을 배포 환경에 올리지 않고, Render 대시보드의 Environment Variables에 `SECRET_KEY`, `FLASK_DEBUG=false`, `ADMIN_USERNAME`, `ADMIN_PASSWORD`를 직접 입력
 - **감수하기로 결정한 트레이드오프**: Render 무료 티어는 디스크가 비영속적(ephemeral) — 재배포하거나 컨테이너가 재시작되면 `market.db`와 업로드된 상품 이미지(`static/uploads/products/`)가 초기화될 수 있음. Persistent Disk는 유료 플랜부터 지원됨. 이 프로젝트는 과제 데모/채점 목적이라 **재배포를 자주 하지 않는 선에서 이 리스크를 감수**하기로 결정 (데이터베이스를 Postgres로 옮기는 등의 대응은 하지 않음)
 - 무료 티어는 15분 무요청 시 슬립 → 첫 요청 시 최대 ~60초 콜드스타트 발생. README에 안내 문구 추가
