@@ -2,6 +2,7 @@
 {% block title %}대시보드{% endblock %}
 {% block content %}
 <h2>대시보드</h2>
+<p>잔액: {{ user.balance }}원 — <a href="{{ url_for('transfer') }}">송금하기</a></p>
 
 <form method="get" action="{{ url_for('search_products') }}" class="search-bar">
   <input type="text" name="q" placeholder="상품명 검색" maxlength="50">
@@ -25,8 +26,12 @@
 <p><a href="{{ url_for('new_product') }}">새 상품 등록</a></p>
 
 <h3>실시간 채팅</h3>
-<div id="chat" data-username="{{ user.username }}">
-  <ul id="messages"></ul>
+<div id="chat">
+  <ul id="messages">
+    {% for msg in global_messages %}
+      <li>[{{ msg.created_at }}] {{ msg.sender_username }}: {{ msg.content }}</li>
+    {% endfor %}
+  </ul>
   <input id="chat_input" type="text" placeholder="메시지를 입력하세요">
   <button id="chat_send_btn">전송</button>
 </div>

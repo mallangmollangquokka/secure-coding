@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block title %}쪽지함{% endblock %}
+{% block content %}
+<h2>쪽지함</h2>
+{% if partners %}
+<ul>
+  {% for p in partners %}
+    <li><a href="{{ url_for('dm_thread', user_id=p.id) }}">{{ p.username }}</a></li>
+  {% endfor %}
+</ul>
+{% else %}
+<p>주고받은 쪽지가 없습니다.</p>
+{% endif %}
+{% endblock %}

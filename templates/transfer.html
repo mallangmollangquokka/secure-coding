@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block title %}송금{% endblock %}
+{% block content %}
+<h2>송금</h2>
+<p>현재 잔액: {{ user.balance }}원</p>
+<form method="post">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  받는 사람 아이디: <input type="text" name="receiver_username" required><br>
+  금액: <input type="text" name="amount" required><br>
+  현재 비밀번호 (본인 확인): <input type="password" name="current_password" required><br>
+  <button type="submit">송금하기</button>
+</form>
+<p><a href="{{ url_for('dashboard') }}">대시보드로 돌아가기</a></p>
+{% endblock %}

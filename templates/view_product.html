@@ -12,6 +12,9 @@
 <p>판매자:
   {% if seller %}
     <a href="{{ url_for('user_profile', user_id=seller.id) }}">{{ seller.username }}</a>
+    {% if session.get('user_id') and session.get('user_id') != product.seller_id %}
+      <a href="{{ url_for('dm_thread', user_id=seller.id) }}">1:1 문의하기</a>
+    {% endif %}
   {% else %}
     알 수 없음
   {% endif %}
@@ -22,5 +25,7 @@
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <button type="submit" class="btn-danger">삭제</button>
   </form>
+{% elif session.get('user_id') %}
+  <p><a href="{{ url_for('report', target_type='product', target_id=product.id) }}">이 상품 신고</a></p>
 {% endif %}
 {% endblock %}

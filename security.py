@@ -69,15 +69,27 @@ def validate_username(username):
 
 def validate_product_title(title):
     errors = []
-    if not (1 <= len(title) <= TITLE_MAX):
+    if not (1 <= len(title.strip()) <= TITLE_MAX):
         errors.append(f'1~{TITLE_MAX}자 이내로 입력해주세요')
     return errors
 
 
 def validate_product_description(description):
     errors = []
-    if not (1 <= len(description) <= DESCRIPTION_MAX):
+    if not (1 <= len(description.strip()) <= DESCRIPTION_MAX):
         errors.append(f'1~{DESCRIPTION_MAX}자 이내로 입력해주세요')
+    return errors
+
+
+REASON_MAX = 500
+REPORT_THRESHOLD = 5
+
+
+def validate_report_reason(reason):
+    """신고 사유 검증. 스페이스바만 입력해도 길이 검증을 통과하지 못하도록 strip 후 검사한다."""
+    errors = []
+    if not (1 <= len(reason.strip()) <= REASON_MAX):
+        errors.append(f'1~{REASON_MAX}자 이내로 입력해주세요')
     return errors
 
 
@@ -107,6 +119,41 @@ def owner_required(get_owner_id_fn):
             return view_func(*args, **kwargs)
         return wrapped_view
     return decorator
+
+
+def socket_user_or_none():
+    """소켓 핸들러용 인증 확인. Flask-SocketIO의 session은 소켓 연결(handshake) 시점의
+    사본이라 이후 로그아웃·비번변경·정지가 반영되지 않는다. 그래서 매 이벤트마다
+    session의 user_id + DB status='active' + session_token 일치를 다시 확인해야
+    실시간 무효화가 성립한다. 전부 통과하면 user Row, 아니면 None을 반환한다."""
+    user_id = session.get('user_id')
+    if not user_id:
+        return None
+    db = _get_db()
+    cursor = db.cursor()
+    cursor.execute("SELECT * FROM user WHERE id = ?", (user_id,))
+    user = cursor.fetchone()
+    if user is None or user['status'] != 'active' or session.get('session_token') != user['session_token']:
+        return None
+    return user
+
+
+def admin_required(view_func):
+    """login_required 뒤에 적용하는 관리자 전용 데코레이터. 세션의 role은 신뢰하지 않고
+    매 요청마다 DB에서 role을 재조회한다."""
+    @wraps(view_func)
+    def wrapped_view(*args, **kwargs):
+        user_id = session.get('user_id')
+        if not user_id:
+            abort(403)
+        db = _get_db()
+        cursor = db.cursor()
+        cursor.execute("SELECT role FROM user WHERE id = ?", (user_id,))
+        row = cursor.fetchone()
+        if row is None or row['role'] != 'admin':
+            abort(403)
+        return view_func(*args, **kwargs)
+    return wrapped_view
 
 
 def get_product_seller_id(product_id):

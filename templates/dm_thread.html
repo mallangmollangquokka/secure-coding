@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}{{ other.username }}님과의 대화{% endblock %}
+{% block content %}
+<h2>{{ other.username }}님과의 대화</h2>
+
+<div id="dm" data-room-id="{{ room_id }}">
+  <ul id="dm_messages">
+    {% for m in messages %}
+      <li>{{ '나' if m.sender_id == session.get('user_id') else other.username }}: {{ m.content }}</li>
+    {% endfor %}
+  </ul>
+  <input id="dm_input" type="text" placeholder="메시지를 입력하세요">
+  <button id="dm_send_btn">전송</button>
+</div>
+
+<script src="{{ url_for('static', filename='js/dm.js') }}"></script>
+<p><a href="{{ url_for('dm_list') }}">쪽지함으로 돌아가기</a></p>
+{% endblock %}

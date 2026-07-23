@@ -1,17 +1,18 @@
 document.addEventListener('DOMContentLoaded', function () {
-  var chatDiv = document.getElementById('chat');
-  if (!chatDiv) return;
+  var dmDiv = document.getElementById('dm');
+  if (!dmDiv) return;
 
+  var roomId = dmDiv.dataset.roomId;
   var socket = io();
 
   socket.on('connect', function () {
-    console.log('채팅 서버에 연결됨');
+    socket.emit('join_dm', { room_id: roomId });
   });
 
-  socket.on('message', function (data) {
-    var messages = document.getElementById('messages');
+  socket.on('dm_message', function (data) {
+    var messages = document.getElementById('dm_messages');
     var item = document.createElement('li');
-    item.textContent = '[' + data.created_at + '] ' + data.username + ': ' + data.message;
+    item.textContent = data.username + ': ' + data.message;
     messages.appendChild(item);
     window.scrollTo(0, document.body.scrollHeight);
   });
@@ -21,16 +22,16 @@ document.addEventListener('DOMContentLoaded', function () {
   });
 
   function sendMessage() {
-    var input = document.getElementById('chat_input');
+    var input = document.getElementById('dm_input');
     var message = input.value;
     if (message) {
-      socket.emit('send_message', { message: message });
+      socket.emit('send_dm', { room_id: roomId, message: message });
       input.value = '';
     }
   }
 
-  document.getElementById('chat_send_btn').addEventListener('click', sendMessage);
-  document.getElementById('chat_input').addEventListener('keydown', function (e) {
+  document.getElementById('dm_send_btn').addEventListener('click', sendMessage);
+  document.getElementById('dm_input').addEventListener('keydown', function (e) {
     if (e.key === 'Enter') {
       e.preventDefault();
       sendMessage();

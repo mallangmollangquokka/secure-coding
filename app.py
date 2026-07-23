@@ -10,7 +10,7 @@ from dotenv import load_dotenv
 from flask import Flask, render_template, request, redirect, url_for, session, flash, g, abort
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
-from flask_socketio import SocketIO, send
+from flask_socketio import SocketIO, send, emit, join_room
 from flask_wtf import CSRFProtect
 from flask_wtf.csrf import CSRFError
 from werkzeug.middleware.proxy_fix import ProxyFix
@@ -21,11 +21,15 @@ from security import (
     validate_product_title,
     validate_product_description,
     validate_product_price,
+    validate_report_reason,
     owner_required,
+    admin_required,
     get_product_seller_id,
     log_action,
     save_product_image,
     delete_product_image,
+    socket_user_or_none,
+    REPORT_THRESHOLD,
     UPLOAD_DIR,
 )
 
@@ -241,6 +245,116 @@ def init_db():
         """)
         db.commit()
 
+        # --- Phase 2B/2C 마이그레이션 -----------------------------------
+
+        # user 테이블: 송금/신고 자동조치에 필요한 컬럼 (spec.md §1에 있었으나 누락돼 있던 것)
+        try:
+            cursor.execute("ALTER TABLE user ADD COLUMN balance INTEGER NOT NULL DEFAULT 0")
+            db.commit()
+        except sqlite3.OperationalError:
+            pass
+
+        try:
+            cursor.execute("ALTER TABLE user ADD COLUMN report_count INTEGER NOT NULL DEFAULT 0")
+            db.commit()
+        except sqlite3.OperationalError:
+            pass
+
+        # report 테이블 확장. ALTER ADD COLUMN ... DEFAULT는 비파괴적이므로 spec §3-3의
+        # "0이 아니면 중단" 가드는 여기서는 적용하지 않고(모듈 최상단 실행 중 중단하면 배포
+        # 서버 전체가 기동 실패한다), 대신 기존 행이 있으면 경고만 출력한다.
+        cursor.execute("SELECT COUNT(*) AS c FROM report")
+        existing_report_count = cursor.fetchone()['c']
+        if existing_report_count != 0:
+            print(f"[MIGRATION WARNING] 기존 report {existing_report_count}건에 target_type='product' "
+                  f"기본값이 부여됨. 실제 대상 종류 수동 확인 필요.")
+
+        try:
+            cursor.execute("ALTER TABLE report ADD COLUMN target_type TEXT NOT NULL DEFAULT 'product'")
+            db.commit()
+        except sqlite3.OperationalError:
+            pass
+
+        try:
+            cursor.execute("ALTER TABLE report ADD COLUMN created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP")
+            db.commit()
+        except sqlite3.OperationalError:
+            pass
+
+        try:
+            cursor.execute("ALTER TABLE report ADD COLUMN auto_action_taken INTEGER NOT NULL DEFAULT 0")
+            db.commit()
+        except sqlite3.OperationalError:
+            pass
+
+        try:
+            cursor.execute("ALTER TABLE report ADD COLUMN auto_action_at TEXT DEFAULT NULL")
+            db.commit()
+        except sqlite3.OperationalError:
+            pass
+
+        # 중복 신고 방지용 UNIQUE 인덱스 (애플리케이션 레벨 체크의 이중 안전장치).
+        # 기존 데이터에 중복이 있으면 생성 실패 -> 경고만 남기고 진행 (앱을 죽이지 않음)
+        try:
+            cursor.execute(
+                "CREATE UNIQUE INDEX IF NOT EXISTS idx_report_unique "
+                "ON report (reporter_id, target_type, target_id)"
+            )
+            db.commit()
+        except sqlite3.OperationalError as e:
+            print(f"[MIGRATION WARNING] idx_report_unique 생성 실패 (기존 데이터에 중복 신고 존재 가능): {e}")
+
+        # 관리자 수동/시스템 자동 조치 감사 로그 (신규)
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS admin_action_log (
+                id TEXT PRIMARY KEY,
+                actor_type TEXT NOT NULL,
+                actor_id TEXT,
+                action TEXT NOT NULL,
+                target_type TEXT NOT NULL,
+                target_id TEXT NOT NULL,
+                reason TEXT,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        db.commit()
+
+        # 1:1 다이렉트 메시지 (신규)
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS direct_message (
+                id TEXT PRIMARY KEY,
+                sender_id TEXT NOT NULL,
+                receiver_id TEXT NOT NULL,
+                content TEXT NOT NULL,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        db.commit()
+
+        # 송금 내역. "transaction"은 SQL 예약어이므로 모든 참조에서 반드시 큰따옴표로 감쌀 것
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS "transaction" (
+                id TEXT PRIMARY KEY,
+                sender_id TEXT NOT NULL,
+                receiver_id TEXT NOT NULL,
+                amount INTEGER NOT NULL CHECK (amount > 0),
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        db.commit()
+
+        # 전체 채팅 영구 저장 (신규)
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS global_message (
+                id TEXT PRIMARY KEY,
+                sender_id TEXT NOT NULL,
+                sender_username TEXT NOT NULL,
+                content TEXT NOT NULL,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        db.commit()
+
         # 관리자 계정 환경변수 자동 시딩 (spec.md §2-2, 멱등적으로 동작: 이미 있으면 아무것도 안 함)
         admin_username = os.environ.get('ADMIN_USERNAME')
         admin_password = os.environ.get('ADMIN_PASSWORD')
@@ -424,7 +538,12 @@ def dashboard():
     # 활성 상품만 조회
     cursor.execute("SELECT * FROM product WHERE status = 'active' ORDER BY created_at DESC")
     all_products = cursor.fetchall()
-    return render_template('dashboard.html', products=all_products, user=current_user)
+    # 전체 채팅 최근 50건 (오래된 순으로 표시)
+    cursor.execute(
+        "SELECT * FROM (SELECT * FROM global_message ORDER BY created_at DESC LIMIT 50) ORDER BY created_at ASC"
+    )
+    global_messages = cursor.fetchall()
+    return render_template('dashboard.html', products=all_products, user=current_user, global_messages=global_messages)
 
 
 # 프로필 페이지: bio 업데이트 가능
@@ -502,6 +621,146 @@ def change_password():
     return redirect(url_for('profile'))
 
 
+# 송금 (재인증 + 원자적 트랜잭션)
+@app.route('/transfer', methods=['GET', 'POST'])
+@login_required
+@limiter.limit('10 per hour', methods=['POST'])
+def transfer():
+    db = get_db()
+    cursor = db.cursor()
+    cursor.execute("SELECT * FROM user WHERE id = ?", (session['user_id'],))
+    current_user = cursor.fetchone()
+
+    if request.method == 'POST':
+        current_password = request.form.get('current_password', '')
+        receiver_username = request.form.get('receiver_username', '')
+        amount_raw = request.form.get('amount', '')
+
+        # 1. 민감 작업 재인증
+        if not bcrypt.checkpw(current_password.encode('utf-8'), current_user['password'].encode('utf-8')):
+            flash('현재 비밀번호가 올바르지 않습니다.')
+            return redirect(url_for('transfer'))
+
+        # 2. amount 검증
+        try:
+            amount = int(amount_raw)
+        except (TypeError, ValueError):
+            flash('금액은 숫자로 입력해주세요.')
+            return redirect(url_for('transfer'))
+        if amount <= 0:
+            flash('금액은 0보다 커야 합니다.')
+            return redirect(url_for('transfer'))
+
+        # 3. 수신자 조회
+        cursor.execute("SELECT * FROM user WHERE username = ?", (receiver_username,))
+        receiver = cursor.fetchone()
+        if receiver is None or receiver['status'] != 'active':
+            flash('존재하지 않거나 이용할 수 없는 수신자입니다.')
+            return redirect(url_for('transfer'))
+
+        # 4. 자기 자신에게 송금 방지
+        if receiver['id'] == current_user['id']:
+            flash('자기 자신에게는 송금할 수 없습니다.')
+            return redirect(url_for('transfer'))
+
+        # 트랜잭션: 잔액 조건부 차감 -> 증가 -> transaction 기록. 전부 하나의 트랜잭션.
+        try:
+            db.execute("BEGIN IMMEDIATE")
+            cursor.execute(
+                "UPDATE user SET balance = balance - ? WHERE id = ? AND balance >= ?",
+                (amount, current_user['id'], amount)
+            )
+            if cursor.rowcount == 0:
+                db.rollback()
+                flash('잔액이 부족합니다.')
+                return redirect(url_for('transfer'))
+
+            cursor.execute(
+                "UPDATE user SET balance = balance + ? WHERE id = ?",
+                (amount, receiver['id'])
+            )
+            transaction_id = str(uuid.uuid4())
+            cursor.execute(
+                'INSERT INTO "transaction" (id, sender_id, receiver_id, amount, created_at) VALUES (?, ?, ?, ?, ?)',
+                (transaction_id, current_user['id'], receiver['id'], amount, utcnow_str())
+            )
+            db.commit()
+        except sqlite3.Error:
+            db.rollback()
+            flash('송금 처리 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.')
+            return redirect(url_for('transfer'))
+
+        # 🔴 log_action은 반드시 커밋 이후에 호출 (트랜잭션 중간에 부르면 그 시점까지만 커밋되고 끊김)
+        log_action('transfer', target_type='user', target_id=receiver['id'], success=True)
+        flash(f'{receiver_username}님에게 {amount}원을 송금했습니다.')
+        return redirect(url_for('dashboard'))
+
+    return render_template('transfer.html', user=current_user)
+
+
+def dm_room_id(user_a, user_b):
+    """두 user_id를 정렬 후 결합해 결정론적인 room id를 만든다. UUID는 '_'를 포함하지
+    않으므로 '_'로 split해도 참여자 id가 안전하게 분리된다."""
+    lo, hi = sorted([user_a, user_b])
+    return f'dm_{lo}_{hi}'
+
+
+def dm_room_participants(room_id):
+    """room_id가 dm_room_id()로 생성 가능한 정상 형태인지 검증하고, 맞으면
+    (참여자 id 2개) 튜플을, 아니면 None을 반환한다."""
+    if not isinstance(room_id, str):
+        return None
+    parts = room_id.split('_')
+    if len(parts) != 3 or parts[0] != 'dm' or not parts[1] or not parts[2]:
+        return None
+    a, b = parts[1], parts[2]
+    if dm_room_id(a, b) != room_id:
+        return None
+    return a, b
+
+
+# 쪽지함: 나와 DM을 주고받은 상대 목록
+@app.route('/messages')
+@login_required
+def dm_list():
+    db = get_db()
+    cursor = db.cursor()
+    cursor.execute(
+        """SELECT DISTINCT CASE WHEN sender_id = ? THEN receiver_id ELSE sender_id END AS other_id
+           FROM direct_message WHERE sender_id = ? OR receiver_id = ?""",
+        (session['user_id'], session['user_id'], session['user_id'])
+    )
+    other_ids = [row['other_id'] for row in cursor.fetchall()]
+    partners = []
+    for other_id in other_ids:
+        cursor.execute("SELECT id, username FROM user WHERE id = ?", (other_id,))
+        partner = cursor.fetchone()
+        if partner is not None:
+            partners.append(partner)
+    return render_template('dm_list.html', partners=partners)
+
+
+# 특정 상대와의 1:1 대화 스레드
+@app.route('/message/<user_id>')
+@login_required
+def dm_thread(user_id):
+    db = get_db()
+    cursor = db.cursor()
+    cursor.execute("SELECT id, username, status FROM user WHERE id = ?", (user_id,))
+    other = cursor.fetchone()
+    if other is None or other['status'] != 'active':
+        abort(404)
+    cursor.execute(
+        """SELECT * FROM direct_message
+           WHERE (sender_id = ? AND receiver_id = ?) OR (sender_id = ? AND receiver_id = ?)
+           ORDER BY created_at ASC""",
+        (session['user_id'], user_id, user_id, session['user_id'])
+    )
+    messages = cursor.fetchall()
+    room_id = dm_room_id(session['user_id'], user_id)
+    return render_template('dm_thread.html', other=other, messages=messages, room_id=room_id)
+
+
 # 공개 프로필: 누구나 조회 가능, 민감정보 미노출
 @app.route('/user/<user_id>')
 def user_profile(user_id):
@@ -525,8 +784,8 @@ def user_profile(user_id):
 @limiter.limit('10 per hour', methods=['POST'])
 def new_product():
     if request.method == 'POST':
-        title = request.form.get('title', '')
-        description = request.form.get('description', '')
+        title = request.form.get('title', '').strip()
+        description = request.form.get('description', '').strip()
         price_raw = request.form.get('price', '')
 
         title_errors = validate_product_title(title)
@@ -590,8 +849,8 @@ def edit_product(product_id):
         abort(404)
 
     if request.method == 'POST':
-        title = request.form.get('title', '')
-        description = request.form.get('description', '')
+        title = request.form.get('title', '').strip()
+        description = request.form.get('description', '').strip()
         price_raw = request.form.get('price', '')
 
         title_errors = validate_product_title(title)
@@ -666,43 +925,382 @@ def search_products():
     return render_template('search_results.html', products=products, query=q)
 
 
-# 신고하기
+# 신고하기 (대상 타입 검증 + 자기/중복 신고 방지 + 임계치 자동조치)
 @app.route('/report', methods=['GET', 'POST'])
 @login_required
 @limiter.limit('5 per minute', methods=['POST'])
 def report():
     if request.method == 'POST':
+        target_type = request.form.get('target_type', '')
         target_id = request.form.get('target_id', '')
-        reason = request.form.get('reason', '')
+        reason = request.form.get('reason', '').strip()
+
+        if target_type not in ('user', 'product'):
+            abort(400)
+
+        reason_errors = validate_report_reason(reason)
+        if reason_errors:
+            flash('신고 사유 ' + ', '.join(reason_errors))
+            return render_template('report.html', target_type=target_type, target_id=target_id)
+
         db = get_db()
         cursor = db.cursor()
-        report_id = str(uuid.uuid4())
+
+        if target_type == 'user':
+            cursor.execute("SELECT id FROM user WHERE id = ?", (target_id,))
+            if cursor.fetchone() is None:
+                abort(400)
+            if target_id == session['user_id']:
+                flash('자기 자신은 신고할 수 없습니다.')
+                return redirect(url_for('report'))
+        else:
+            cursor.execute("SELECT id, seller_id FROM product WHERE id = ?", (target_id,))
+            target_product = cursor.fetchone()
+            if target_product is None:
+                abort(400)
+            if target_product['seller_id'] == session['user_id']:
+                flash('본인 상품은 신고할 수 없습니다.')
+                return redirect(url_for('report'))
+
         cursor.execute(
-            "INSERT INTO report (id, reporter_id, target_id, reason) VALUES (?, ?, ?, ?)",
-            (report_id, session['user_id'], target_id, reason)
+            "SELECT id FROM report WHERE reporter_id = ? AND target_type = ? AND target_id = ?",
+            (session['user_id'], target_type, target_id)
         )
-        db.commit()
+        if cursor.fetchone() is not None:
+            flash('이미 신고한 대상입니다.')
+            return redirect(url_for('report'))
+
+        report_id = str(uuid.uuid4())
+        created_at = utcnow_str()
+        try:
+            db.execute("BEGIN IMMEDIATE")
+            cursor.execute(
+                "INSERT INTO report (id, reporter_id, target_id, reason, target_type, created_at) "
+                "VALUES (?, ?, ?, ?, ?, ?)",
+                (report_id, session['user_id'], target_id, reason, target_type, created_at)
+            )
+
+            auto_action = None
+            if target_type == 'user':
+                cursor.execute("UPDATE user SET report_count = report_count + 1 WHERE id = ?", (target_id,))
+                cursor.execute("SELECT report_count, status FROM user WHERE id = ?", (target_id,))
+                state = cursor.fetchone()
+                if state['report_count'] >= REPORT_THRESHOLD and state['status'] != 'suspended':
+                    cursor.execute(
+                        "UPDATE user SET status = 'suspended', session_token = NULL WHERE id = ?",
+                        (target_id,)
+                    )
+                    auto_action = 'suspend_user'
+            else:
+                cursor.execute("UPDATE product SET report_count = report_count + 1 WHERE id = ?", (target_id,))
+                cursor.execute("SELECT report_count, status FROM product WHERE id = ?", (target_id,))
+                state = cursor.fetchone()
+                if state['report_count'] >= REPORT_THRESHOLD and state['status'] != 'blocked':
+                    cursor.execute("UPDATE product SET status = 'blocked' WHERE id = ?", (target_id,))
+                    auto_action = 'block_product'
+
+            if auto_action:
+                cursor.execute(
+                    "UPDATE report SET auto_action_taken = 1, auto_action_at = ? WHERE id = ?",
+                    (created_at, report_id)
+                )
+                cursor.execute(
+                    "INSERT INTO admin_action_log "
+                    "(id, actor_type, actor_id, action, target_type, target_id, reason, created_at) "
+                    "VALUES (?, 'system', NULL, ?, ?, ?, ?, ?)",
+                    (str(uuid.uuid4()), auto_action, target_type, target_id, report_id, created_at)
+                )
+            db.commit()
+        except sqlite3.IntegrityError:
+            db.rollback()
+            flash('이미 신고한 대상입니다.')
+            return redirect(url_for('report'))
+        except sqlite3.Error:
+            db.rollback()
+            flash('신고 처리 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.')
+            return redirect(url_for('report'))
+
+        # 🔴 log_action은 커밋 이후에 호출
+        log_action('report_create', target_type=target_type, target_id=target_id, success=True)
         flash('신고가 접수되었습니다.')
         return redirect(url_for('dashboard'))
-    return render_template('report.html')
+
+    target_type = request.args.get('target_type', '')
+    target_id = request.args.get('target_id', '')
+    return render_template('report.html', target_type=target_type, target_id=target_id)
 
 
-# 실시간 채팅: 클라이언트가 메시지를 보내면 전체 브로드캐스트
+# 관리자 대시보드: 신고/자동조치 내역, 유저, 상품 목록
+@app.route('/admin')
+@login_required
+@admin_required
+def admin_dashboard():
+    db = get_db()
+    cursor = db.cursor()
+    cursor.execute("SELECT * FROM report ORDER BY created_at DESC")
+    reports = cursor.fetchall()
+    cursor.execute("SELECT * FROM admin_action_log ORDER BY created_at DESC")
+    actions = cursor.fetchall()
+    cursor.execute("SELECT * FROM user ORDER BY created_at DESC")
+    users = cursor.fetchall()
+    cursor.execute("SELECT * FROM product ORDER BY created_at DESC")
+    products = cursor.fetchall()
+    return render_template('admin.html', reports=reports, actions=actions, users=users, products=products)
+
+
+@app.route('/admin/user/<user_id>/suspend', methods=['POST'])
+@login_required
+@admin_required
+def admin_suspend_user(user_id):
+    if user_id == session['user_id']:
+        flash('자기 자신은 정지할 수 없습니다.')
+        return redirect(url_for('admin_dashboard'))
+    db = get_db()
+    cursor = db.cursor()
+    cursor.execute("SELECT id FROM user WHERE id = ?", (user_id,))
+    if cursor.fetchone() is None:
+        abort(404)
+    cursor.execute("UPDATE user SET status = 'suspended', session_token = NULL WHERE id = ?", (user_id,))
+    cursor.execute(
+        "INSERT INTO admin_action_log (id, actor_type, actor_id, action, target_type, target_id, reason, created_at) "
+        "VALUES (?, 'admin', ?, 'suspend_user', 'user', ?, NULL, ?)",
+        (str(uuid.uuid4()), session['user_id'], user_id, utcnow_str())
+    )
+    db.commit()
+    log_action('admin_suspend_user', target_type='user', target_id=user_id, success=True)
+    flash('사용자를 정지했습니다.')
+    return redirect(url_for('admin_dashboard'))
+
+
+@app.route('/admin/user/<user_id>/unsuspend', methods=['POST'])
+@login_required
+@admin_required
+def admin_unsuspend_user(user_id):
+    db = get_db()
+    cursor = db.cursor()
+    cursor.execute("SELECT id FROM user WHERE id = ?", (user_id,))
+    if cursor.fetchone() is None:
+        abort(404)
+    cursor.execute("UPDATE user SET status = 'active', report_count = 0 WHERE id = ?", (user_id,))
+    cursor.execute(
+        "INSERT INTO admin_action_log (id, actor_type, actor_id, action, target_type, target_id, reason, created_at) "
+        "VALUES (?, 'admin', ?, 'unsuspend_user', 'user', ?, NULL, ?)",
+        (str(uuid.uuid4()), session['user_id'], user_id, utcnow_str())
+    )
+    db.commit()
+    log_action('admin_unsuspend_user', target_type='user', target_id=user_id, success=True)
+    flash('정지를 해제했습니다.')
+    return redirect(url_for('admin_dashboard'))
+
+
+@app.route('/admin/user/<user_id>/grant', methods=['POST'])
+@login_required
+@admin_required
+def admin_grant_balance(user_id):
+    db = get_db()
+    cursor = db.cursor()
+    cursor.execute("SELECT id FROM user WHERE id = ?", (user_id,))
+    if cursor.fetchone() is None:
+        abort(404)
+    amount_raw = request.form.get('amount', '')
+    try:
+        amount = int(amount_raw)
+    except (TypeError, ValueError):
+        flash('금액은 숫자로 입력해주세요.')
+        return redirect(url_for('admin_dashboard'))
+    if amount <= 0:
+        flash('금액은 0보다 커야 합니다.')
+        return redirect(url_for('admin_dashboard'))
+    cursor.execute("UPDATE user SET balance = balance + ? WHERE id = ?", (amount, user_id))
+    cursor.execute(
+        "INSERT INTO admin_action_log (id, actor_type, actor_id, action, target_type, target_id, reason, created_at) "
+        "VALUES (?, 'admin', ?, 'grant_balance', 'user', ?, ?, ?)",
+        (str(uuid.uuid4()), session['user_id'], user_id, str(amount), utcnow_str())
+    )
+    db.commit()
+    log_action('admin_grant_balance', target_type='user', target_id=user_id, success=True)
+    flash('잔액을 지급했습니다.')
+    return redirect(url_for('admin_dashboard'))
+
+
+@app.route('/admin/product/<product_id>/block', methods=['POST'])
+@login_required
+@admin_required
+def admin_block_product(product_id):
+    db = get_db()
+    cursor = db.cursor()
+    cursor.execute("SELECT id FROM product WHERE id = ?", (product_id,))
+    if cursor.fetchone() is None:
+        abort(404)
+    cursor.execute("UPDATE product SET status = 'blocked' WHERE id = ?", (product_id,))
+    cursor.execute(
+        "INSERT INTO admin_action_log (id, actor_type, actor_id, action, target_type, target_id, reason, created_at) "
+        "VALUES (?, 'admin', ?, 'block_product', 'product', ?, NULL, ?)",
+        (str(uuid.uuid4()), session['user_id'], product_id, utcnow_str())
+    )
+    db.commit()
+    log_action('admin_block_product', target_type='product', target_id=product_id, success=True)
+    flash('상품을 차단했습니다.')
+    return redirect(url_for('admin_dashboard'))
+
+
+@app.route('/admin/product/<product_id>/restore', methods=['POST'])
+@login_required
+@admin_required
+def admin_restore_product(product_id):
+    db = get_db()
+    cursor = db.cursor()
+    cursor.execute("SELECT id FROM product WHERE id = ?", (product_id,))
+    if cursor.fetchone() is None:
+        abort(404)
+    cursor.execute("UPDATE product SET status = 'active', report_count = 0 WHERE id = ?", (product_id,))
+    cursor.execute(
+        "INSERT INTO admin_action_log (id, actor_type, actor_id, action, target_type, target_id, reason, created_at) "
+        "VALUES (?, 'admin', ?, 'restore_product', 'product', ?, NULL, ?)",
+        (str(uuid.uuid4()), session['user_id'], product_id, utcnow_str())
+    )
+    db.commit()
+    log_action('admin_restore_product', target_type='product', target_id=product_id, success=True)
+    flash('상품을 복구했습니다.')
+    return redirect(url_for('admin_dashboard'))
+
+
+# nav에서 관리자 링크 노출 여부 판단용 (UI 편의일 뿐, 실제 방어는 admin_required가 담당)
+@app.context_processor
+def inject_current_user():
+    user_id = session.get('user_id')
+    if not user_id:
+        return {'current_user': None}
+    db = get_db()
+    cursor = db.cursor()
+    cursor.execute("SELECT * FROM user WHERE id = ?", (user_id,))
+    return {'current_user': cursor.fetchone()}
+
+
+# 채팅/DM 공용 rate limiting: 5초 윈도우 내 5회 초과 전송 차단
+_chat_rate_limits = {}
+CHAT_RATE_WINDOW_SECONDS = 5
+CHAT_RATE_MAX_MESSAGES = 5
+
+
+def check_chat_rate_limit(user_id):
+    """5초 이내 5회 초과 전송이면 False. 윈도우를 벗어난 타임스탬프는 이벤트마다 정리하고,
+    정리 후 리스트가 비면 키 자체를 dict에서 삭제해 재방문하지 않는 유저의 항목이
+    프로세스 수명 내내 쌓이지 않게 한다."""
+    now = datetime.now(timezone.utc).timestamp()
+    timestamps = [t for t in _chat_rate_limits.get(user_id, []) if now - t < CHAT_RATE_WINDOW_SECONDS]
+    if not timestamps:
+        _chat_rate_limits.pop(user_id, None)
+    if len(timestamps) >= CHAT_RATE_MAX_MESSAGES:
+        _chat_rate_limits[user_id] = timestamps
+        return False
+    timestamps.append(now)
+    _chat_rate_limits[user_id] = timestamps
+    return True
+
+
+# 실시간 채팅: 클라이언트가 메시지를 보내면 전체 브로드캐스트 + DB 영구 저장
 @socketio.on('send_message')
 def handle_send_message_event(data):
-    if 'user_id' not in session:
+    # 소켓의 session은 handshake 시점의 사본이라 로그아웃/정지가 반영되지 않으므로
+    # 매 이벤트마다 DB 상태와 session_token을 재검증한다.
+    user = socket_user_or_none()
+    if user is None:
         return
     if not isinstance(data, dict):
         return
     message = data.get('message', '')
     if not isinstance(message, str):
         return
-    if not message.strip():
+    message = message.strip()
+    if not message or len(message) > 500:
         return
-    if len(message) > 500:
+
+    if not check_chat_rate_limit(user['id']):
+        emit('rate_limited', {'scope': 'global'})
         return
-    data['message_id'] = str(uuid.uuid4())
-    send(data, broadcast=True)
+
+    db = get_db()
+    cursor = db.cursor()
+    message_id = str(uuid.uuid4())
+    created_at = utcnow_str()
+    cursor.execute(
+        "INSERT INTO global_message (id, sender_id, sender_username, content, created_at) VALUES (?, ?, ?, ?, ?)",
+        (message_id, user['id'], user['username'], message, created_at)
+    )
+    db.commit()
+
+    # 클라이언트가 보낸 dict를 재사용하지 않고 서버가 세션 기준으로 새 payload를 구성 (신원 위조 방지)
+    payload = {
+        'message_id': message_id,
+        'username': user['username'],
+        'message': message,
+        'created_at': created_at,
+    }
+    send(payload, broadcast=True)
+
+
+# 1:1 채팅 room 입장: 요청된 room의 참여자 중 하나인지 서버측에서 반드시 재검증
+@socketio.on('join_dm')
+def handle_join_dm(data):
+    user = socket_user_or_none()
+    if user is None:
+        return
+    if not isinstance(data, dict):
+        return
+    room_id = data.get('room_id', '')
+    participants = dm_room_participants(room_id)
+    if participants is None or user['id'] not in participants:
+        log_action('dm_join_denied', target_type='room',
+                   target_id=room_id if isinstance(room_id, str) else None, success=False)
+        return
+    join_room(room_id)
+
+
+# 1:1 메시지 전송: join 시점 검증을 신뢰하지 않고 매번 재검증
+@socketio.on('send_dm')
+def handle_send_dm(data):
+    user = socket_user_or_none()
+    if user is None:
+        return
+    if not isinstance(data, dict):
+        return
+    room_id = data.get('room_id', '')
+    participants = dm_room_participants(room_id)
+    if participants is None or user['id'] not in participants:
+        log_action('dm_join_denied', target_type='room',
+                   target_id=room_id if isinstance(room_id, str) else None, success=False)
+        return
+
+    message = data.get('message', '')
+    if not isinstance(message, str):
+        return
+    message = message.strip()
+    if not message or len(message) > 500:
+        return
+
+    if not check_chat_rate_limit(user['id']):
+        emit('rate_limited', {'scope': 'dm'})
+        return
+
+    other_id = participants[0] if participants[1] == user['id'] else participants[1]
+    db = get_db()
+    cursor = db.cursor()
+    dm_id = str(uuid.uuid4())
+    created_at = utcnow_str()
+    cursor.execute(
+        "INSERT INTO direct_message (id, sender_id, receiver_id, content, created_at) VALUES (?, ?, ?, ?, ?)",
+        (dm_id, user['id'], other_id, message, created_at)
+    )
+    db.commit()
+    payload = {
+        'message_id': dm_id,
+        'sender_id': user['id'],
+        'username': user['username'],
+        'message': message,
+        'created_at': created_at,
+    }
+    emit('dm_message', payload, room=room_id)
 
 
 @app.errorhandler(CSRFError)
