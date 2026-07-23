@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}{{ profile_user.username }}님의 프로필{% endblock %}
+{% block content %}
+<h2>{{ profile_user.username }}</h2>
+<p>{{ profile_user.bio or '소개글이 없습니다.' }}</p>
+<p>가입일: {{ profile_user.created_at }}</p>
+
+<h3>등록한 상품</h3>
+{% if products %}
+<ul>
+  {% for product in products %}
+    <li class="product-card">
+      {% if product.image_filename %}
+        <img class="product-thumb" src="{{ url_for('static', filename='uploads/products/' + product.image_filename) }}" alt="{{ product.title }}">
+      {% else %}
+        <div class="product-thumb product-thumb-placeholder"></div>
+      {% endif %}
+      <a href="{{ url_for('view_product', product_id=product.id) }}">{{ product.title }}</a>
+      - 가격: {{ product.price }}
+    </li>
+  {% endfor %}
+</ul>
+{% else %}
+<p>등록한 상품이 없습니다.</p>
+{% endif %}
+{% endblock %}

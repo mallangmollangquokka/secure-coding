@@ -1,14 +1,14 @@
 {% extends "base.html" %}
-{% block title %}대시보드{% endblock %}
+{% block title %}검색 결과{% endblock %}
 {% block content %}
-<h2>대시보드</h2>
+<h2>검색 결과: "{{ query }}"</h2>
 
 <form method="get" action="{{ url_for('search_products') }}" class="search-bar">
-  <input type="text" name="q" placeholder="상품명 검색" maxlength="50">
+  <input type="text" name="q" value="{{ query }}" placeholder="상품명 검색" maxlength="50">
   <button type="submit">검색</button>
 </form>
 
-<h3>등록된 상품</h3>
+{% if products %}
 <ul>
   {% for product in products %}
     <li class="product-card">
@@ -22,14 +22,9 @@
     </li>
   {% endfor %}
 </ul>
-<p><a href="{{ url_for('new_product') }}">새 상품 등록</a></p>
+{% else %}
+<p>검색 결과가 없습니다.</p>
+{% endif %}
 
-<h3>실시간 채팅</h3>
-<div id="chat" data-username="{{ user.username }}">
-  <ul id="messages"></ul>
-  <input id="chat_input" type="text" placeholder="메시지를 입력하세요">
-  <button id="chat_send_btn">전송</button>
-</div>
-
-<script src="{{ url_for('static', filename='js/chat.js') }}"></script>
+<p><a href="{{ url_for('dashboard') }}">대시보드로 돌아가기</a></p>
 {% endblock %}

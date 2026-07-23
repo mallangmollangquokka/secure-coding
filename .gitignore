@@ -5,3 +5,5 @@ __pycache__
 venv/
 cookies.txt
 server.log
+static/uploads/products/*
+!static/uploads/products/.gitkeep

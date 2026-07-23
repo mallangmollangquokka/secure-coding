@@ -103,6 +103,44 @@
       color: #333;
       text-decoration: underline;
     }
+    /* 상품 카드 (대시보드/검색결과/공개프로필 공통) */
+    .product-card {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .product-thumb {
+      width: 60px;
+      height: 60px;
+      object-fit: cover;
+      border-radius: 4px;
+      border: 1px solid #e0e0e0;
+      flex-shrink: 0;
+    }
+    .product-thumb-placeholder {
+      background-color: #e0e0e0;
+    }
+    /* 검색창 */
+    .search-bar {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+    .search-bar input {
+      margin-bottom: 0;
+    }
+    .search-bar button {
+      width: auto;
+      margin-bottom: 0;
+      white-space: nowrap;
+    }
+    /* 위험 동작 버튼 (삭제 등) */
+    .btn-danger {
+      background-color: #D32F2F;
+    }
+    .btn-danger:hover {
+      background-color: #B71C1C;
+    }
   </style>
 </head>
 <body>

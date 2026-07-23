@@ -3,10 +3,21 @@
 {% block content %}
 <h2>프로필 관리</h2>
 <p>사용자명: {{ user.username }}</p>
+<p><a href="{{ url_for('user_profile', user_id=user.id) }}">공개 프로필 보기</a></p>
 <form method="post">
   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
   소개글: <br>
   <textarea name="bio" rows="4" cols="50">{{ user.bio or '' }}</textarea><br>
   <button type="submit">프로필 업데이트</button>
+</form>
+
+<h3>비밀번호 변경</h3>
+<form method="post" action="{{ url_for('change_password') }}">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  현재 비밀번호: <input type="password" name="current_password" required><br>
+  새 비밀번호: <input type="password" name="new_password" required><br>
+  새 비밀번호 확인: <input type="password" name="new_password_confirm" required><br>
+  <small>8자 이상, 영문 대/소문자, 숫자, 특수문자를 각 1개 이상 포함해야 합니다.</small><br>
+  <button type="submit">비밀번호 변경</button>
 </form>
 {% endblock %}
