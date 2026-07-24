@@ -54,10 +54,22 @@ cp .env.example .env
 
 | 키 | 용도 |
 |---|---|
-| `SECRET_KEY` | Flask 세션 서명, CSRF 토큰 생성에 사용되는 비밀키. 랜덤한 긴 문자열이어야 하며, `python -c "import secrets; print(secrets.token_hex(32))"` 로 생성할 수 있습니다. 값이 없으면 앱이 즉시 에러를 내며 기동하지 않습니다. |
+| `SECRET_KEY` | Flask 세션 서명, CSRF 토큰 생성에 사용되는 비밀키. 랜덤한 긴 문자열이어야 하며, `python -c "import secrets; print(secrets.token_hex(32))"` 로 생성할 수 있습니다. |
 | `FLASK_DEBUG` | 로컬 개발 중에는 `true`, 그 외(배포 등)에는 반드시 `false`. `true`일 때만 세션 쿠키의 `Secure` 플래그가 꺼지고(HTTP 개발 편의), HSTS 헤더가 비활성화됩니다. |
 | `ADMIN_USERNAME` | 서버 최초 기동 시 자동 생성되는 관리자 계정의 아이디. |
 | `ADMIN_PASSWORD` | 위 관리자 계정의 비밀번호. bcrypt로 해싱되어 저장되며, 이미 해당 username의 계정이 있으면 아무 동작도 하지 않습니다(멱등적). |
+
+`.env` 파일이 없거나 `SECRET_KEY` 값이 비어 있는 상태로 `python app.py`를 실행하면, 스택 트레이스 없이 아래처럼 설정 방법을 안내하는 메시지를 출력하고 종료합니다.
+
+```
+[설정 오류] SECRET_KEY가 설정되지 않았습니다.
+  1. .env.example을 복사해 .env 파일을 만드세요:
+     cp .env.example .env
+  2. .env 파일을 열어 SECRET_KEY에 랜덤한 값을 채우세요. 예:
+     python -c "import secrets; print(secrets.token_hex(32))"
+  3. 서버를 다시 실행하세요:
+     python app.py
+```
 
 ## 관리자 계정 안내
 

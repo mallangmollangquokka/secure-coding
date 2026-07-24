@@ -1,6 +1,7 @@
 import json
 import os
 import sqlite3
+import sys
 import uuid
 from datetime import datetime, timedelta, timezone
 from functools import wraps
@@ -35,14 +36,26 @@ from security import (
 
 load_dotenv()
 
-if 'SECRET_KEY' not in os.environ:
-    raise RuntimeError(
-        "SECRET_KEY 환경변수가 설정되지 않았습니다. .env 파일을 생성하고 SECRET_KEY를 정의하세요 "
-        "(.env.example 참고)."
+# SECRET_KEY는 세션 서명/CSRF 토큰 생성에 쓰이는 필수값이라 하드코딩 기본값을 두지 않는다
+# (기본값을 두면 원본 코드의 하드코딩 결함이 되살아난다). .env가 아예 없는 경우뿐 아니라
+# .env는 있지만 SECRET_KEY 줄이 비어있는 경우(`SECRET_KEY=`)도 os.environ에는 빈 문자열로
+# 들어오므로 함께 걸러낸다. 스택 트레이스 대신 설정 방법을 안내하고 깔끔하게 종료한다.
+_secret_key = os.environ.get('SECRET_KEY', '').strip()
+if not _secret_key:
+    print(
+        "[설정 오류] SECRET_KEY가 설정되지 않았습니다.\n"
+        "  1. .env.example을 복사해 .env 파일을 만드세요:\n"
+        "     cp .env.example .env\n"
+        "  2. .env 파일을 열어 SECRET_KEY에 랜덤한 값을 채우세요. 예:\n"
+        "     python -c \"import secrets; print(secrets.token_hex(32))\"\n"
+        "  3. 서버를 다시 실행하세요:\n"
+        "     python app.py",
+        file=sys.stderr,
     )
+    sys.exit(1)
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = os.environ['SECRET_KEY']
+app.config['SECRET_KEY'] = _secret_key
 
 # Render 등 리버스 프록시 뒤에서 실행될 때 요청 스킴/호스트/클라이언트 IP를 올바르게 인식하도록 함
 app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
