@@ -1,17 +1,78 @@
 {% extends "base.html" %}
-{% block title %}환영합니다{% endblock %}
+{% block title %}MY MARKET{% endblock %}
 {% block content %}
-<div class="hero">
-  <div class="hero-stars">
-    <svg viewBox="0 0 24 24"><path d="M12 0C12 6 13 11 24 12 13 13 12 18 12 24 12 18 11 13 0 12 11 11 12 6 12 0Z"/></svg>
-    <svg viewBox="0 0 24 24"><path d="M12 0C12 6 13 11 24 12 13 13 12 18 12 24 12 18 11 13 0 12 11 11 12 6 12 0Z"/></svg>
-    <svg viewBox="0 0 24 24"><path d="M12 0C12 6 13 11 24 12 13 13 12 18 12 24 12 18 11 13 0 12 11 11 12 6 12 0Z"/></svg>
+
+<div class="lp-hero">
+  <div class="lp-kicker">믿을 수 있는 이웃 간 중고 거래</div>
+  <div class="lp-title">안 쓰는 물건에 새 주인을 찾아주세요<span class="lp-dash"></span></div>
+  <div class="lp-sub">사고, 팔고, 나누는 가장 안전한 방법</div>
+
+  <div class="lp-centerpiece">
+    <svg viewBox="0 0 480 440" role="img" aria-label="MY MARKET">
+      <defs>
+        <linearGradient id="blobGrad" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stop-color="#4e7a44"/>
+          <stop offset="1" stop-color="#38623f"/>
+        </linearGradient>
+      </defs>
+
+      <!-- 연결선 -->
+      <g fill="none" stroke="#6d9a53" stroke-width="2">
+        <path d="M112,112 Q150,150 170,180"/>
+        <path d="M372,126 Q348,152 322,172"/>
+        <path d="M360,286 Q342,292 330,296"/>
+      </g>
+
+      <!-- 유기적 블롭 -->
+      <path fill="url(#blobGrad)" d="M240,96
+        C318,96 388,140 398,224
+        C408,308 356,380 272,398
+        C196,414 112,382 92,300
+        C74,224 110,140 182,112
+        C202,104 220,96 240,96 Z"/>
+
+      <!-- 중앙 별 + 로고 -->
+      <path fill="#a6c95f" transform="translate(211,150) scale(2.4)" d="M12 0C12 6 13 11 24 12 13 13 12 18 12 24 12 18 11 13 0 12 11 11 12 6 12 0Z"/>
+      <text x="240" y="300" text-anchor="middle" fill="#ffffff" font-family="Montserrat, Pretendard, sans-serif" font-weight="800" font-size="27" letter-spacing="1">MY MARKET</text>
+      <text x="240" y="326" text-anchor="middle" fill="#dfeccb" font-family="Pretendard, sans-serif" font-size="13">안전한 중고 거래</text>
+
+      <!-- 말풍선 라벨 -->
+      <g font-family="Pretendard, sans-serif" font-weight="700" font-size="15" fill="#2f5d3a">
+        <rect x="24" y="68" width="92" height="40" rx="20" fill="#ffffff" stroke="#4e7a44" stroke-width="1.5"/>
+        <text x="70" y="93" text-anchor="middle">사세요</text>
+
+        <rect x="356" y="82" width="92" height="40" rx="20" fill="#ffffff" stroke="#4e7a44" stroke-width="1.5"/>
+        <text x="402" y="107" text-anchor="middle">파세요</text>
+
+        <rect x="356" y="266" width="104" height="40" rx="20" fill="#ffffff" stroke="#4e7a44" stroke-width="1.5"/>
+        <text x="408" y="291" text-anchor="middle">나누세요</text>
+      </g>
+    </svg>
   </div>
-  <h1>MY MARKET</h1>
-  <p>믿을 수 있는 중고 거래</p>
 </div>
-<div style="text-align:center; margin-top:28px; display:flex; gap:12px; justify-content:center;">
-  <a href="{{ url_for('login') }}" style="text-decoration:none"><button type="button" style="width:auto; padding-left:32px; padding-right:32px;">로그인</button></a>
-  <a href="{{ url_for('register') }}" style="text-decoration:none"><button type="button" style="width:auto; padding-left:32px; padding-right:32px; background:var(--green-700);">회원가입</button></a>
+
+<div class="lp-section-h">이렇게 거래해요</div>
+<div class="lp-steps">
+  <div class="lp-step"><div class="n">STEP 1</div><h4>상품 둘러보기</h4><p>등록된 중고 상품을 검색하고 둘러보세요.</p></div>
+  <div class="lp-step"><div class="n">STEP 2</div><h4>채팅 문의</h4><p>판매자에게 1:1 쪽지로 궁금한 점을 물어보세요.</p></div>
+  <div class="lp-step"><div class="n">STEP 3</div><h4>잔액 충전</h4><p>간편하게 잔액을 충전해 거래를 준비하세요.</p></div>
+  <div class="lp-step"><div class="n">STEP 4</div><h4>안전 송금</h4><p>비밀번호 재확인을 거쳐 안전하게 송금하세요.</p></div>
+</div>
+
+<div class="lp-section-h">MY MARKET이 안전한 이유</div>
+<div class="lp-features">
+  <div class="lp-feature"><div class="ic"></div><div><h4>안전한 인증</h4><p>비밀번호 정책과 로그인 보호로 계정을 지켜요.</p></div></div>
+  <div class="lp-feature"><div class="ic"></div><div><h4>실시간 채팅</h4><p>전체 채팅과 1:1 쪽지로 바로 소통해요.</p></div></div>
+  <div class="lp-feature"><div class="ic"></div><div><h4>간편 충전·송금</h4><p>원자적 처리로 잔액이 꼬이지 않아요.</p></div></div>
+  <div class="lp-feature"><div class="ic"></div><div><h4>신고·관리</h4><p>부적절한 상품과 사용자를 신고하고 관리해요.</p></div></div>
+</div>
+
+<div class="lp-cta">
+  <h3>지금 시작하세요</h3>
+  <p class="muted">회원가입하고 첫 거래를 시작해 보세요.</p>
+  <div class="buttons">
+    <a href="{{ url_for('register') }}"><button type="button">회원가입</button></a>
+    <a href="{{ url_for('login') }}"><button type="button" style="background:var(--green-900);">로그인</button></a>
+  </div>
 </div>
 {% endblock %}

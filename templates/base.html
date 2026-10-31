@@ -17,15 +17,15 @@
       --lime: #a6c95f;
       --cream: #f1e8d7;
       --cream-dark: #e8dcc4;
-      --red: #be4b4b;
-      --red-dark: #a53f3f;
+      --clay: #b06a43;
+      --clay-dark: #935531;
       --ink: #2c3a2e;
       --muted: #8a9382;
       --line: #e3dccb;
       --card: #ffffff;
       --font-body: "Pretendard", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       --font-display: "Montserrat", "Pretendard", sans-serif;
-      --star: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%23be4b4b' d='M12 0C12 6 13 11 24 12 13 13 12 18 12 24 12 18 11 13 0 12 11 11 12 6 12 0Z'/%3E%3C/svg%3E");
+      --star: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%234e7a44' d='M12 0C12 6 13 11 24 12 13 13 12 18 12 24 12 18 11 13 0 12 11 11 12 6 12 0Z'/%3E%3C/svg%3E");
     }
     * { box-sizing: border-box; }
     body {
@@ -158,16 +158,16 @@
       box-shadow: 0 0 0 3px rgba(109, 154, 83, 0.18);
     }
     button {
-      background-color: var(--red);
+      background-color: var(--green-700);
       color: #fff;
       border: none;
       cursor: pointer;
       font-weight: 700;
       transition: background-color 0.15s;
     }
-    button:hover { background-color: var(--red-dark); }
-    .btn-danger { background-color: var(--red-dark); }
-    .btn-danger:hover { background-color: #8f3636; }
+    button:hover { background-color: var(--green-900); }
+    .btn-danger { background-color: var(--clay); }
+    .btn-danger:hover { background-color: var(--clay-dark); }
 
     ul { list-style: none; padding: 0; }
     li { padding: 10px 0; }
@@ -198,7 +198,7 @@
     .hero-stars { display: flex; justify-content: center; gap: 14px; margin-bottom: 10px; }
     .hero-stars svg { width: 46px; height: 46px; }
     .hero-stars svg:nth-child(2) { width: 68px; height: 68px; }
-    .hero-stars path { fill: var(--red); }
+    .hero-stars path { fill: var(--green-700); }
     .hero h1 {
       font-size: 46px;
       letter-spacing: 1px;
@@ -253,7 +253,7 @@
     .ledger th { font-size: 12px; color: var(--muted); font-weight: 700; }
     .ledger td.amount { text-align: right; font-weight: 700; font-variant-numeric: tabular-nums; }
     .amount-in { color: var(--green-700); }
-    .amount-out { color: var(--red); }
+    .amount-out { color: var(--clay); }
     .section-title {
       font-family: var(--font-display);
       font-size: 15px;
@@ -323,16 +323,16 @@
       width: 58px;
       height: 58px;
       border-radius: 50%;
-      background: var(--red);
+      background: var(--green-700);
       color: #fff;
       font-size: 30px;
       line-height: 58px;
       text-align: center;
       text-decoration: none;
-      box-shadow: 0 6px 18px rgba(190, 75, 75, 0.45);
+      box-shadow: 0 6px 18px rgba(47, 93, 58, 0.4);
       z-index: 15;
     }
-    .fab:hover { background: var(--red-dark); color: #fff; }
+    .fab:hover { background: var(--green-900); color: #fff; }
 
     /* ---- 메신저 ---- */
     .chat-log {
@@ -377,7 +377,7 @@
       color: var(--ink);
     }
     .bubble-row.me .bubble {
-      background: var(--red);
+      background: var(--green-700);
       color: #fff;
       border-bottom-right-radius: 5px;
       max-width: 72%;
@@ -415,11 +415,59 @@
 
     /* ---- 상태 배지 ---- */
     .badge { display: inline-block; padding: 3px 9px; border-radius: 12px; font-size: 12px; font-weight: 700; background-color: var(--cream-dark); color: var(--ink); }
-    .badge-blocked, .badge-suspended { background-color: #f3d4d1; color: var(--red-dark); }
+    .badge-blocked, .badge-suspended { background-color: #efdcc9; color: var(--clay-dark); }
+
+    /* ---- 랜딩(첫 페이지) ---- */
+    .lp-hero { text-align: center; padding: 6px 0 4px; }
+    .lp-kicker { color: var(--green-700); font-weight: 700; letter-spacing: 0.3px; font-size: 14px; }
+    .lp-title {
+      font-family: var(--font-display);
+      font-size: 30px;
+      color: var(--green-900);
+      line-height: 1.35;
+      margin: 8px 0 6px;
+    }
+    .lp-dash { display: inline-block; width: 60px; height: 3px; background: var(--green-700); vertical-align: middle; margin-left: 10px; border-radius: 2px; }
+    .lp-centerpiece { max-width: 440px; margin: 10px auto 0; }
+    .lp-centerpiece svg { width: 100%; height: auto; display: block; }
+    .lp-sub { color: var(--muted); margin-top: 2px; }
+    .lp-section-h {
+      font-family: var(--font-display);
+      font-size: 20px;
+      color: var(--ink);
+      margin: 44px 0 16px;
+      text-align: center;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 9px;
+    }
+    .lp-section-h::before {
+      content: "";
+      width: 18px; height: 18px;
+      background: var(--star) center/contain no-repeat;
+    }
+    .lp-steps { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; }
+    .lp-step { border: 1px solid var(--line); border-radius: 13px; padding: 18px; background: #fff; }
+    .lp-step .n { font-family: var(--font-display); font-weight: 800; color: var(--green-700); font-size: 13px; }
+    .lp-step h4 { font-family: var(--font-display); margin: 7px 0 5px; font-size: 16px; }
+    .lp-step p { margin: 0; font-size: 13.5px; color: var(--muted); line-height: 1.6; }
+    .lp-features { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; }
+    .lp-feature { display: flex; gap: 12px; align-items: flex-start; padding: 15px; border-radius: 13px; background: #faf6ec; }
+    .lp-feature .ic { width: 30px; height: 30px; flex-shrink: 0; background: var(--star) center/contain no-repeat; }
+    .lp-feature h4 { margin: 0 0 3px; font-size: 15px; }
+    .lp-feature p { margin: 0; font-size: 13px; color: var(--muted); line-height: 1.55; }
+    .lp-cta { text-align: center; margin-top: 44px; padding: 30px; background: #faf6ec; border-radius: 16px; }
+    .lp-cta h3 { margin-bottom: 6px; }
+    .lp-cta .buttons { display: flex; gap: 12px; justify-content: center; margin-top: 16px; flex-wrap: wrap; }
+    .lp-cta .buttons a { text-decoration: none; }
+    .lp-cta .buttons button { width: auto; padding-left: 36px; padding-right: 36px; margin: 0; }
 
     @media (max-width: 600px) {
       .container { padding: 24px 18px; margin: 16px 12px 80px; border-radius: 12px; }
       .hero h1 { font-size: 36px; }
+      .lp-title { font-size: 23px; }
+      .lp-steps, .lp-features { grid-template-columns: 1fr; }
     }
   </style>
 </head>
