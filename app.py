@@ -356,6 +356,20 @@ def init_db():
         """)
         db.commit()
 
+        # 충전(결제) 원장. 샌드박스 결제 승인 결과를 1건씩 기록한다.
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS deposit (
+                id TEXT PRIMARY KEY,
+                user_id TEXT NOT NULL,
+                amount INTEGER NOT NULL CHECK (amount > 0),
+                method TEXT NOT NULL,
+                approval_no TEXT NOT NULL,
+                status TEXT NOT NULL DEFAULT 'completed',
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        db.commit()
+
         # 전체 채팅 영구 저장 (신규)
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS global_message (
@@ -705,10 +719,96 @@ def transfer():
 
         # 🔴 log_action은 반드시 커밋 이후에 호출 (트랜잭션 중간에 부르면 그 시점까지만 커밋되고 끊김)
         log_action('transfer', target_type='user', target_id=receiver['id'], success=True)
-        flash(f'{receiver_username}님에게 {amount}원을 송금했습니다.')
-        return redirect(url_for('dashboard'))
+        flash(f'{receiver_username}님에게 {amount:,}원을 송금했습니다.')
+        return redirect(url_for('transfer'))
 
-    return render_template('transfer.html', user=current_user)
+    # GET: 최근 거래 내역 (보낸/받은 송금). 상대 username은 JOIN으로 가져온다.
+    cursor.execute(
+        'SELECT t.amount, t.created_at, t.sender_id, '
+        '       s.username AS sender, r.username AS receiver '
+        'FROM "transaction" t '
+        'JOIN user s ON s.id = t.sender_id '
+        'JOIN user r ON r.id = t.receiver_id '
+        'WHERE t.sender_id = ? OR t.receiver_id = ? '
+        'ORDER BY t.created_at DESC LIMIT 20',
+        (current_user['id'], current_user['id'])
+    )
+    transactions = cursor.fetchall()
+    return render_template('transfer.html', user=current_user, transactions=transactions)
+
+
+# 잔액 충전 (샌드박스 결제). 실제 PG 연동 대신 모의 승인번호를 발급하지만,
+# 금액 검증·CSRF·rate limit·원자적 처리·원장 기록 등 보안 처리는 실제와 동일하게 적용한다.
+DEPOSIT_METHODS = {'card': '신용/체크카드', 'bank': '계좌이체', 'phone': '휴대폰 결제'}
+MAX_DEPOSIT = 1_000_000  # 1회 충전 한도
+
+
+@app.route('/deposit', methods=['GET', 'POST'])
+@login_required
+@limiter.limit('20 per hour', methods=['POST'])
+def deposit():
+    db = get_db()
+    cursor = db.cursor()
+    cursor.execute("SELECT * FROM user WHERE id = ?", (session['user_id'],))
+    current_user = cursor.fetchone()
+
+    if request.method == 'POST':
+        method = request.form.get('method', '')
+        amount_raw = request.form.get('amount', '')
+
+        # 1. 결제수단 검증 (화이트리스트)
+        if method not in DEPOSIT_METHODS:
+            flash('결제수단을 선택해주세요.')
+            return redirect(url_for('deposit'))
+
+        # 2. 금액 검증
+        try:
+            amount = int(amount_raw)
+        except (TypeError, ValueError):
+            flash('금액은 숫자로 입력해주세요.')
+            return redirect(url_for('deposit'))
+        if amount <= 0:
+            flash('금액은 0보다 커야 합니다.')
+            return redirect(url_for('deposit'))
+        if amount > MAX_DEPOSIT:
+            flash(f'1회 충전 한도는 {MAX_DEPOSIT:,}원입니다.')
+            return redirect(url_for('deposit'))
+
+        # 3. 샌드박스 결제 승인 (실제 PG 대신 모의 승인번호 발급)
+        approval_no = 'SB-' + uuid.uuid4().hex[:16].upper()
+
+        # 4. 원자적 처리: 잔액 증가 + 원장 기록
+        try:
+            db.execute("BEGIN IMMEDIATE")
+            cursor.execute(
+                "UPDATE user SET balance = balance + ? WHERE id = ?",
+                (amount, current_user['id'])
+            )
+            cursor.execute(
+                "INSERT INTO deposit (id, user_id, amount, method, approval_no, status, created_at) "
+                "VALUES (?, ?, ?, ?, ?, 'completed', ?)",
+                (str(uuid.uuid4()), current_user['id'], amount, method, approval_no, utcnow_str())
+            )
+            db.commit()
+        except sqlite3.Error:
+            db.rollback()
+            flash('충전 처리 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.')
+            return redirect(url_for('deposit'))
+
+        log_action('deposit', target_type='user', target_id=current_user['id'], success=True)
+        flash(f'{amount:,}원이 충전되었습니다. (승인번호 {approval_no})')
+        return redirect(url_for('deposit'))
+
+    # GET: 최근 충전 내역
+    cursor.execute(
+        "SELECT * FROM deposit WHERE user_id = ? ORDER BY created_at DESC LIMIT 20",
+        (current_user['id'],)
+    )
+    deposits = cursor.fetchall()
+    return render_template(
+        'deposit.html', user=current_user, deposits=deposits,
+        methods=DEPOSIT_METHODS, max_deposit=MAX_DEPOSIT
+    )
 
 
 def dm_room_id(user_a, user_b):

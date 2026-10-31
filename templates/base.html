@@ -16,14 +16,51 @@
     }
     nav {
       background-color: #fff;
-      padding: 20px;
+      padding: 0 24px;
       border-bottom: 1px solid #e0e0e0;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+    .nav-inner {
+      max-width: 880px;
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      height: 58px;
+    }
+    .nav-brand {
+      text-decoration: none;
+      color: #111;
+      font-weight: 700;
+      font-size: 17px;
+    }
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      flex-wrap: wrap;
     }
     nav a {
       text-decoration: none;
       color: #555;
-      margin-right: 15px;
+      padding: 6px 10px;
+      border-radius: 6px;
       font-weight: 500;
+      transition: background-color 0.15s, color 0.15s;
+    }
+    .nav-links a:hover {
+      background-color: #f0f0f0;
+      color: #111;
+    }
+    .nav-balance {
+      background-color: #EAF3FF;
+      color: #0063CC !important;
+      font-weight: 700;
+    }
+    .nav-balance:hover {
+      background-color: #d8e9ff !important;
     }
     .container {
       max-width: 800px;
@@ -202,26 +239,99 @@
       background-color: #FFCDD2;
       color: #B71C1C;
     }
+    /* 폼 라벨 (송금/충전 등) */
+    .field { margin-bottom: 18px; }
+    .field label {
+      display: block;
+      font-size: 13px;
+      font-weight: 600;
+      color: #666;
+      margin-bottom: 6px;
+    }
+    .field input, .field select { margin-bottom: 0; }
+    .hint { font-size: 12px; color: #999; margin-top: 6px; }
+    .muted { color: #999; }
+    /* 잔액 카드 */
+    .balance-card {
+      background: linear-gradient(135deg, #0A84FF, #0063CC);
+      color: #fff;
+      border-radius: 12px;
+      padding: 22px 24px;
+      margin-bottom: 28px;
+    }
+    .balance-card .label { font-size: 13px; opacity: 0.85; margin-bottom: 6px; }
+    .balance-card .amount { font-size: 30px; font-weight: 700; letter-spacing: -0.5px; }
+    /* 결제수단 선택 */
+    .pay-methods { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 0; }
+    .pay-methods label {
+      flex: 1;
+      min-width: 120px;
+      border: 1px solid #e0e0e0;
+      border-radius: 8px;
+      padding: 14px;
+      text-align: center;
+      cursor: pointer;
+      font-weight: 500;
+      transition: border-color 0.15s, background-color 0.15s;
+    }
+    .pay-methods label:hover { border-color: #0A84FF; }
+    .pay-methods input { display: none; }
+    .pay-methods input:checked + span { color: #0063CC; font-weight: 700; }
+    /* 금액 빠른 선택 */
+    .chips { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+    .chips button {
+      width: auto;
+      margin: 0;
+      padding: 6px 14px;
+      background: #f0f0f0;
+      color: #333;
+      font-size: 14px;
+      font-weight: 500;
+    }
+    .chips button:hover { background: #e2e2e2; }
+    /* 내역 테이블 */
+    .ledger { width: 100%; border-collapse: collapse; font-size: 14px; }
+    .ledger th, .ledger td {
+      text-align: left;
+      padding: 10px 8px;
+      border-bottom: 1px solid #eee;
+    }
+    .ledger th { font-size: 12px; color: #999; font-weight: 600; }
+    .ledger td.amount { text-align: right; font-weight: 600; font-variant-numeric: tabular-nums; }
+    .amount-in { color: #1B8A4B; }
+    .amount-out { color: #C0392B; }
+    .section-title { font-size: 14px; color: #888; margin: 32px 0 10px; font-weight: 600; }
+    .empty { color: #aaa; padding: 20px 0; text-align: center; }
   </style>
 </head>
 <body>
   <nav>
-    {% if session.get('user_id') %}
-      <a href="{{ url_for('dashboard') }}">대시보드</a>
-      <a href="{{ url_for('profile') }}">프로필</a>
-      <a href="{{ url_for('dm_list') }}">쪽지함</a>
-      <a href="{{ url_for('report') }}">신고하기</a>
-      {% if current_user and current_user.role == 'admin' %}
-        <a href="{{ url_for('admin_dashboard') }}">관리자</a>
-      {% endif %}
-      <form method="post" action="{{ url_for('logout') }}" style="display: inline;">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <button type="submit" class="nav-form-btn">로그아웃</button>
-      </form>
-    {% else %}
-      <a href="{{ url_for('login') }}">로그인</a>
-      <a href="{{ url_for('register') }}">회원가입</a>
-    {% endif %}
+    <div class="nav-inner">
+      <a href="{{ url_for('dashboard') if session.get('user_id') else url_for('login') }}" class="nav-brand">🛍️ My Market</a>
+      <div class="nav-links">
+        {% if session.get('user_id') %}
+          <a href="{{ url_for('dashboard') }}">대시보드</a>
+          <a href="{{ url_for('deposit') }}">충전</a>
+          <a href="{{ url_for('transfer') }}">송금</a>
+          <a href="{{ url_for('dm_list') }}">쪽지함</a>
+          <a href="{{ url_for('report') }}">신고하기</a>
+          <a href="{{ url_for('profile') }}">프로필</a>
+          {% if current_user and current_user.role == 'admin' %}
+            <a href="{{ url_for('admin_dashboard') }}">관리자</a>
+          {% endif %}
+          {% if current_user %}
+            <a href="{{ url_for('deposit') }}" class="nav-balance" title="보유 잔액">{{ '{:,}'.format(current_user.balance) }}원</a>
+          {% endif %}
+          <form method="post" action="{{ url_for('logout') }}" style="display: inline;">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="nav-form-btn">로그아웃</button>
+          </form>
+        {% else %}
+          <a href="{{ url_for('login') }}">로그인</a>
+          <a href="{{ url_for('register') }}">회원가입</a>
+        {% endif %}
+      </div>
+    </div>
   </nav>
   <div class="container">
     {% with messages = get_flashed_messages() %}

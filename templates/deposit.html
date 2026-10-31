@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block title %}충전{% endblock %}
+{% block content %}
+<h2>잔액 충전</h2>
+
+<div class="balance-card">
+  <div class="label">보유 잔액</div>
+  <div class="amount">{{ '{:,}'.format(user.balance) }}원</div>
+</div>
+
+<form method="post">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <div class="field">
+    <label>결제수단</label>
+    <div class="pay-methods">
+      {% for key, name in methods.items() %}
+      <label>
+        <input type="radio" name="method" value="{{ key }}" {{ 'checked' if loop.first }}>
+        <span>{{ name }}</span>
+      </label>
+      {% endfor %}
+    </div>
+  </div>
+  <div class="field">
+    <label for="amount">충전 금액</label>
+    <input type="number" id="amount" name="amount" min="1" max="{{ max_deposit }}" step="1" inputmode="numeric" placeholder="예: 10000" required>
+    <p class="hint">1회 최대 {{ '{:,}'.format(max_deposit) }}원까지 충전할 수 있습니다.</p>
+  </div>
+  <button type="submit">결제하기</button>
+</form>
+<p class="hint" style="margin-top:14px">
+  ⚠️ 실제 결제가 아닌 <strong>샌드박스(테스트) 결제</strong>입니다. 실제 카드·계좌 정보를 입력받지 않으며, 승인 결과만 모의로 발급됩니다.
+</p>
+
+<div class="section-title">충전 내역</div>
+{% if deposits %}
+<table class="ledger">
+  <thead>
+    <tr><th>일시</th><th>수단</th><th>승인번호</th><th style="text-align:right">금액</th></tr>
+  </thead>
+  <tbody>
+    {% for d in deposits %}
+    <tr>
+      <td class="muted">{{ d.created_at[:16] }}</td>
+      <td>{{ methods.get(d.method, d.method) }}</td>
+      <td class="muted">{{ d.approval_no }}</td>
+      <td class="amount amount-in">+{{ '{:,}'.format(d.amount) }}원</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<p class="empty">아직 충전 내역이 없습니다.</p>
+{% endif %}
+{% endblock %}
