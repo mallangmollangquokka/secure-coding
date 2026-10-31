@@ -3,28 +3,33 @@
 {% block content %}
 <h2>{{ profile_user.username }}</h2>
 <p>{{ profile_user.bio or '소개글이 없습니다.' }}</p>
-<p>가입일: {{ profile_user.created_at }}</p>
+<p class="muted">가입일: {{ profile_user.created_at }}</p>
 {% if session.get('user_id') and session.get('user_id') != profile_user.id %}
-  <p><a href="{{ url_for('dm_thread', user_id=profile_user.id) }}">1:1 채팅하기</a></p>
-  <p><a href="{{ url_for('report', target_type='user', target_id=profile_user.id) }}">이 사용자 신고</a></p>
+  <p>
+    <a href="{{ url_for('dm_thread', user_id=profile_user.id) }}">1:1 채팅하기</a>
+    &nbsp;·&nbsp;
+    <a href="{{ url_for('report', target_type='user', target_id=profile_user.id) }}">이 사용자 신고</a>
+  </p>
 {% endif %}
 
-<h3>등록한 상품</h3>
+<div class="section-title">등록한 상품</div>
 {% if products %}
-<ul>
+<div class="product-list">
   {% for product in products %}
-    <li class="product-card">
+    <a class="product-card" href="{{ url_for('view_product', product_id=product.id) }}">
       {% if product.image_filename %}
         <img class="product-thumb" src="{{ url_for('static', filename='uploads/products/' + product.image_filename) }}" alt="{{ product.title }}">
       {% else %}
         <div class="product-thumb product-thumb-placeholder"></div>
       {% endif %}
-      <a href="{{ url_for('view_product', product_id=product.id) }}">{{ product.title }}</a>
-      - 가격: {{ product.price }}
-    </li>
+      <div class="product-body">
+        <div class="product-title">{{ product.title }}</div>
+        <div class="product-price">{{ product.price }}원</div>
+      </div>
+    </a>
   {% endfor %}
-</ul>
+</div>
 {% else %}
-<p>등록한 상품이 없습니다.</p>
+<p class="empty">등록한 상품이 없습니다.</p>
 {% endif %}
 {% endblock %}

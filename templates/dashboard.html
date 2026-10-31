@@ -1,40 +1,59 @@
 {% extends "base.html" %}
 {% block title %}대시보드{% endblock %}
 {% block content %}
-<h2>대시보드</h2>
-<p>잔액: {{ user.balance }}원 — <a href="{{ url_for('transfer') }}">송금하기</a></p>
+<h2>중고 거래</h2>
 
 <form method="get" action="{{ url_for('search_products') }}" class="search-bar">
   <input type="text" name="q" placeholder="상품명 검색" maxlength="50">
   <button type="submit">검색</button>
 </form>
 
-<h3>등록된 상품</h3>
-<ul>
+<div class="section-title">등록된 상품</div>
+{% if products %}
+<div class="product-list">
   {% for product in products %}
-    <li class="product-card">
+    <a class="product-card" href="{{ url_for('view_product', product_id=product.id) }}">
       {% if product.image_filename %}
         <img class="product-thumb" src="{{ url_for('static', filename='uploads/products/' + product.image_filename) }}" alt="{{ product.title }}">
       {% else %}
         <div class="product-thumb product-thumb-placeholder"></div>
       {% endif %}
-      <a href="{{ url_for('view_product', product_id=product.id) }}">{{ product.title }}</a>
-      - 가격: {{ product.price }}
-    </li>
+      <div class="product-body">
+        <div class="product-title">{{ product.title }}</div>
+        <div class="product-price">{{ product.price }}원</div>
+        {% if product.created_at %}<div class="product-meta">{{ product.created_at[:10] }}</div>{% endif %}
+      </div>
+    </a>
   {% endfor %}
-</ul>
-<p><a href="{{ url_for('new_product') }}">새 상품 등록</a></p>
-
-<h3>실시간 채팅</h3>
-<div id="chat">
-  <ul id="messages">
-    {% for msg in global_messages %}
-      <li>[{{ msg.created_at }}] {{ msg.sender_username }}: {{ msg.content }}</li>
-    {% endfor %}
-  </ul>
-  <input id="chat_input" type="text" placeholder="메시지를 입력하세요">
-  <button id="chat_send_btn">전송</button>
 </div>
+{% else %}
+<p class="empty">등록된 상품이 없습니다.</p>
+{% endif %}
+
+<div class="section-title">실시간 채팅</div>
+<div id="chat" data-me="{{ current_user.username if current_user else '' }}">
+  <div id="messages" class="chat-log">
+    {% for msg in global_messages %}
+      {% if msg.sender_id == session.get('user_id') %}
+        <div class="bubble-row me"><div class="bubble">{{ msg.content }}</div></div>
+      {% else %}
+        <div class="bubble-row other">
+          <div class="avatar">{{ msg.sender_username[:1] }}</div>
+          <div class="bubble-col">
+            <div class="bubble-name">{{ msg.sender_username }}</div>
+            <div class="bubble">{{ msg.content }}</div>
+          </div>
+        </div>
+      {% endif %}
+    {% endfor %}
+  </div>
+  <div class="chat-bar">
+    <input id="chat_input" type="text" placeholder="메시지를 입력하세요" autocomplete="off">
+    <button id="chat_send_btn" type="button">전송</button>
+  </div>
+</div>
+
+<a class="fab" href="{{ url_for('new_product') }}" title="새 상품 등록">+</a>
 
 <script src="{{ url_for('static', filename='js/chat.js') }}"></script>
 {% endblock %}

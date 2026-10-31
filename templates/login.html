@@ -1,11 +1,27 @@
 {% extends "base.html" %}
 {% block title %}로그인{% endblock %}
 {% block content %}
-<h2>로그인</h2>
+<div class="hero">
+  <div class="hero-stars">
+    <svg viewBox="0 0 24 24"><path d="M12 0C12 6 13 11 24 12 13 13 12 18 12 24 12 18 11 13 0 12 11 11 12 6 12 0Z"/></svg>
+    <svg viewBox="0 0 24 24"><path d="M12 0C12 6 13 11 24 12 13 13 12 18 12 24 12 18 11 13 0 12 11 11 12 6 12 0Z"/></svg>
+    <svg viewBox="0 0 24 24"><path d="M12 0C12 6 13 11 24 12 13 13 12 18 12 24 12 18 11 13 0 12 11 11 12 6 12 0Z"/></svg>
+  </div>
+  <h1>로그인</h1>
+  <p>MY MARKET에 오신 것을 환영합니다</p>
+</div>
+
 <form method="post">
   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-  사용자명: <input type="text" name="username" required><br>
-  비밀번호: <input type="password" name="password" required><br>
+  <div class="field">
+    <label for="username">사용자명</label>
+    <input type="text" id="username" name="username" autocomplete="username" required>
+  </div>
+  <div class="field">
+    <label for="password">비밀번호</label>
+    <input type="password" id="password" name="password" autocomplete="current-password" required>
+  </div>
   <button type="submit">로그인</button>
 </form>
+<p class="hint" style="text-align:center">계정이 없으신가요? <a href="{{ url_for('register') }}">회원가입</a></p>
 {% endblock %}

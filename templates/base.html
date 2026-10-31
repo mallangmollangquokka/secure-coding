@@ -2,312 +2,434 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
-  <title>{% block title %}My Market{% endblock %}</title>
-  <!-- Socket.IO 클라이언트 라이브러리 -->
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}MY MARKET{% endblock %}</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@600;700;800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
   <style>
-    /* Notion 스타일 미니멀 디자인 */
+    :root {
+      --green-900: #38623f;
+      --green-700: #4e7a44;
+      --green-500: #6d9a53;
+      --lime: #a6c95f;
+      --cream: #f1e8d7;
+      --cream-dark: #e8dcc4;
+      --red: #be4b4b;
+      --red-dark: #a53f3f;
+      --ink: #2c3a2e;
+      --muted: #8a9382;
+      --line: #e3dccb;
+      --card: #ffffff;
+      --font-body: "Pretendard", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      --font-display: "Montserrat", "Pretendard", sans-serif;
+      --star: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%23be4b4b' d='M12 0C12 6 13 11 24 12 13 13 12 18 12 24 12 18 11 13 0 12 11 11 12 6 12 0Z'/%3E%3C/svg%3E");
+    }
+    * { box-sizing: border-box; }
     body {
-      background-color: #F7F7F7;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background-color: var(--cream);
+      font-family: var(--font-body);
       margin: 0;
       padding: 0;
-      color: #333;
+      color: var(--ink);
+      line-height: 1.6;
+      word-break: keep-all;
     }
+    a { color: var(--green-700); }
+
+    /* ---- 상단 바 ---- */
     nav {
-      background-color: #fff;
+      background-color: var(--green-900);
       padding: 0 24px;
-      border-bottom: 1px solid #e0e0e0;
       position: sticky;
       top: 0;
-      z-index: 10;
+      z-index: 20;
     }
     .nav-inner {
-      max-width: 880px;
+      max-width: 900px;
       margin: 0 auto;
       display: flex;
       align-items: center;
       justify-content: space-between;
-      height: 58px;
+      min-height: 60px;
+      gap: 12px;
+      flex-wrap: wrap;
     }
     .nav-brand {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
       text-decoration: none;
-      color: #111;
-      font-weight: 700;
-      font-size: 17px;
+      color: #fff;
+      font-family: var(--font-display);
+      font-weight: 800;
+      font-size: 20px;
+      letter-spacing: 0.5px;
     }
+    .nav-brand .brand-star { width: 20px; height: 20px; }
+    .nav-brand .brand-star path { fill: var(--lime); }
     .nav-links {
       display: flex;
       align-items: center;
-      gap: 4px;
+      gap: 2px;
       flex-wrap: wrap;
     }
     nav a {
       text-decoration: none;
-      color: #555;
-      padding: 6px 10px;
-      border-radius: 6px;
-      font-weight: 500;
+      color: #dfe9d7;
+      padding: 7px 11px;
+      border-radius: 8px;
+      font-weight: 600;
+      font-size: 15px;
       transition: background-color 0.15s, color 0.15s;
     }
-    .nav-links a:hover {
-      background-color: #f0f0f0;
-      color: #111;
-    }
+    .nav-links a:hover { background-color: rgba(255,255,255,0.12); color: #fff; }
     .nav-balance {
-      background-color: #EAF3FF;
-      color: #0063CC !important;
-      font-weight: 700;
+      background-color: var(--lime);
+      color: var(--green-900) !important;
+      font-weight: 800;
     }
-    .nav-balance:hover {
-      background-color: #d8e9ff !important;
-    }
-    .container {
-      max-width: 800px;
-      margin: 40px auto;
-      background-color: #fff;
-      padding: 40px;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
-      border-radius: 8px;
-    }
-    h1, h2, h3 {
-      font-weight: 600;
-      margin-bottom: 20px;
-    }
-    input, textarea, button {
-      width: 100%;
-      padding: 10px;
-      margin-bottom: 20px;
-      border: 1px solid #e0e0e0;
-      border-radius: 4px;
-      font-size: 16px;
-    }
-    button {
-      background-color: #007AFF;
-      color: #fff;
-      border: none;
-      cursor: pointer;
-      transition: background-color 0.2s;
-    }
-    button:hover {
-      background-color: #005BB5;
-    }
-    ul {
-      list-style: none;
-      padding: 0;
-    }
-    li {
-      padding: 10px;
-      border-bottom: 1px solid #e0e0e0;
-    }
-    .flash {
-      background-color: #FFECB3;
-      padding: 10px;
-      border: 1px solid #FFB74D;
-      border-radius: 4px;
-      margin-bottom: 20px;
-    }
-    /* 채팅 영역 스타일 */
-    #chat {
-      margin-top: 40px;
-    }
-    #messages {
-      height: 200px;
-      overflow-y: auto;
-      border: 1px solid #e0e0e0;
-      padding: 10px;
-      border-radius: 4px;
-      margin-bottom: 10px;
-      background-color: #fafafa;
-    }
-    /* nav 안에서 로그아웃 버튼이 링크처럼 보이도록 */
+    .nav-balance:hover { background-color: #b6d96f !important; color: var(--green-900) !important; }
     .nav-form-btn {
       display: inline;
       width: auto;
-      padding: 0;
-      margin: 0 15px 0 0;
+      padding: 7px 11px;
+      margin: 0;
       border: none;
       background: none;
-      color: #555;
-      font-weight: 500;
-      font-size: inherit;
+      color: #dfe9d7;
+      font-weight: 600;
+      font-size: 15px;
       font-family: inherit;
       cursor: pointer;
-      text-decoration: none;
+      border-radius: 8px;
     }
-    .nav-form-btn:hover {
-      background: none;
-      color: #333;
-      text-decoration: underline;
+    .nav-form-btn:hover { background: rgba(255,255,255,0.12); color: #fff; }
+
+    /* ---- 레이아웃 ---- */
+    .container {
+      max-width: 900px;
+      margin: 28px auto 80px;
+      background-color: var(--card);
+      padding: 36px 40px;
+      box-shadow: 0 2px 10px rgba(56, 98, 63, 0.08);
+      border-radius: 14px;
     }
-    /* 상품 카드 (대시보드/검색결과/공개프로필 공통) */
-    .product-card {
+    h1, h2, h3 {
+      font-family: var(--font-display);
+      color: var(--ink);
+      font-weight: 800;
+      letter-spacing: -0.3px;
+      margin: 0 0 20px;
+    }
+    h1 { font-size: 34px; }
+    h2 {
+      font-size: 25px;
       display: flex;
       align-items: center;
-      gap: 12px;
+      gap: 9px;
     }
-    .product-thumb {
-      width: 60px;
-      height: 60px;
-      object-fit: cover;
-      border-radius: 4px;
-      border: 1px solid #e0e0e0;
+    h2::before {
+      content: "";
+      width: 22px;
+      height: 22px;
+      background: var(--star) center/contain no-repeat;
       flex-shrink: 0;
     }
-    .product-thumb-placeholder {
-      background-color: #e0e0e0;
-    }
-    /* 검색창 */
-    .search-bar {
-      display: flex;
-      gap: 10px;
-      margin-bottom: 20px;
-    }
-    .search-bar input {
-      margin-bottom: 0;
-    }
-    .search-bar button {
-      width: auto;
-      margin-bottom: 0;
-      white-space: nowrap;
-    }
-    /* 위험 동작 버튼 (삭제 등) */
-    .btn-danger {
-      background-color: #D32F2F;
-    }
-    .btn-danger:hover {
-      background-color: #B71C1C;
-    }
-    /* 신고 대상 타입 라디오 */
-    .radio-group {
-      display: flex;
-      gap: 20px;
-      margin-bottom: 20px;
-      font-weight: normal;
-    }
-    .radio-group label {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-    }
-    .radio-group input {
-      width: auto;
-      margin: 0;
-    }
-    /* 관리자 대시보드 테이블 */
-    .admin-table {
+    h3 { font-size: 19px; }
+
+    /* ---- 폼 요소 ---- */
+    input, textarea, select, button {
       width: 100%;
-      border-collapse: collapse;
-      margin-bottom: 30px;
-      font-size: 14px;
+      padding: 12px 13px;
+      margin-bottom: 18px;
+      border: 1px solid var(--line);
+      border-radius: 9px;
+      font-size: 15px;
+      font-family: inherit;
+      background: #fff;
+      color: var(--ink);
     }
-    .admin-table th, .admin-table td {
-      text-align: left;
-      padding: 8px 10px;
-      border-bottom: 1px solid #e0e0e0;
-      vertical-align: middle;
+    input:focus, textarea:focus, select:focus {
+      outline: none;
+      border-color: var(--green-500);
+      box-shadow: 0 0 0 3px rgba(109, 154, 83, 0.18);
     }
-    .admin-table th {
-      background-color: #fafafa;
-      font-weight: 600;
+    button {
+      background-color: var(--red);
+      color: #fff;
+      border: none;
+      cursor: pointer;
+      font-weight: 700;
+      transition: background-color 0.15s;
     }
-    .admin-table form {
-      display: inline-block;
-      margin: 0 4px 0 0;
+    button:hover { background-color: var(--red-dark); }
+    .btn-danger { background-color: var(--red-dark); }
+    .btn-danger:hover { background-color: #8f3636; }
+
+    ul { list-style: none; padding: 0; }
+    li { padding: 10px 0; }
+
+    .flash {
+      background-color: #faf4e6;
+      padding: 12px 14px;
+      border: 1px solid var(--cream-dark);
+      border-left: 4px solid var(--green-500);
+      border-radius: 8px;
+      margin-bottom: 12px;
     }
-    .admin-table input, .admin-table button {
-      width: auto;
-      margin-bottom: 0;
-      padding: 6px 10px;
-      font-size: 14px;
-    }
-    /* 상태 배지 */
-    .badge {
-      display: inline-block;
-      padding: 2px 8px;
-      border-radius: 12px;
-      font-size: 12px;
-      font-weight: 600;
-      background-color: #E0E0E0;
-      color: #333;
-    }
-    .badge-blocked {
-      background-color: #FFCDD2;
-      color: #B71C1C;
-    }
-    .badge-suspended {
-      background-color: #FFCDD2;
-      color: #B71C1C;
-    }
-    /* 폼 라벨 (송금/충전 등) */
+
     .field { margin-bottom: 18px; }
     .field label {
       display: block;
       font-size: 13px;
-      font-weight: 600;
-      color: #666;
-      margin-bottom: 6px;
+      font-weight: 700;
+      color: var(--muted);
+      margin-bottom: 7px;
     }
     .field input, .field select { margin-bottom: 0; }
-    .hint { font-size: 12px; color: #999; margin-top: 6px; }
-    .muted { color: #999; }
-    /* 잔액 카드 */
-    .balance-card {
-      background: linear-gradient(135deg, #0A84FF, #0063CC);
-      color: #fff;
-      border-radius: 12px;
-      padding: 22px 24px;
-      margin-bottom: 28px;
+    .hint { font-size: 12.5px; color: var(--muted); margin-top: 7px; }
+    .muted { color: var(--muted); }
+
+    /* ---- 히어로 (랜딩/로그인) ---- */
+    .hero { text-align: center; padding: 20px 0 10px; }
+    .hero-stars { display: flex; justify-content: center; gap: 14px; margin-bottom: 10px; }
+    .hero-stars svg { width: 46px; height: 46px; }
+    .hero-stars svg:nth-child(2) { width: 68px; height: 68px; }
+    .hero-stars path { fill: var(--red); }
+    .hero h1 {
+      font-size: 46px;
+      letter-spacing: 1px;
+      margin-bottom: 8px;
+      color: var(--green-900);
     }
-    .balance-card .label { font-size: 13px; opacity: 0.85; margin-bottom: 6px; }
-    .balance-card .amount { font-size: 30px; font-weight: 700; letter-spacing: -0.5px; }
-    /* 결제수단 선택 */
+    .hero p { color: var(--muted); margin-top: 0; }
+
+    /* ---- 잔액 카드 ---- */
+    .balance-card {
+      background: linear-gradient(135deg, var(--green-700), var(--green-900));
+      color: #fff;
+      border-radius: 14px;
+      padding: 22px 24px;
+      margin-bottom: 26px;
+      position: relative;
+      overflow: hidden;
+    }
+    .balance-card::after {
+      content: "";
+      position: absolute;
+      right: -14px;
+      top: -14px;
+      width: 96px;
+      height: 96px;
+      background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%23a6c95f' d='M12 0C12 6 13 11 24 12 13 13 12 18 12 24 12 18 11 13 0 12 11 11 12 6 12 0Z'/%3E%3C/svg%3E") center/contain no-repeat;
+      opacity: 0.35;
+    }
+    .balance-card .label { font-size: 13px; opacity: 0.9; margin-bottom: 6px; }
+    .balance-card .amount { font-family: var(--font-display); font-size: 32px; font-weight: 800; }
+
+    /* ---- 결제수단 ---- */
     .pay-methods { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 0; }
     .pay-methods label {
       flex: 1;
       min-width: 120px;
-      border: 1px solid #e0e0e0;
-      border-radius: 8px;
-      padding: 14px;
+      border: 1.5px solid var(--line);
+      border-radius: 10px;
+      padding: 15px;
       text-align: center;
       cursor: pointer;
-      font-weight: 500;
+      font-weight: 600;
       transition: border-color 0.15s, background-color 0.15s;
     }
-    .pay-methods label:hover { border-color: #0A84FF; }
+    .pay-methods label:hover { border-color: var(--green-500); }
     .pay-methods input { display: none; }
-    .pay-methods input:checked + span { color: #0063CC; font-weight: 700; }
-    /* 금액 빠른 선택 */
-    .chips { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
-    .chips button {
-      width: auto;
-      margin: 0;
-      padding: 6px 14px;
-      background: #f0f0f0;
-      color: #333;
-      font-size: 14px;
-      font-weight: 500;
-    }
-    .chips button:hover { background: #e2e2e2; }
-    /* 내역 테이블 */
+    .pay-methods input:checked + span { color: var(--green-700); font-weight: 800; }
+
+    /* ---- 내역 테이블 ---- */
     .ledger { width: 100%; border-collapse: collapse; font-size: 14px; }
-    .ledger th, .ledger td {
-      text-align: left;
-      padding: 10px 8px;
-      border-bottom: 1px solid #eee;
+    .ledger th, .ledger td { text-align: left; padding: 11px 8px; border-bottom: 1px solid var(--line); }
+    .ledger th { font-size: 12px; color: var(--muted); font-weight: 700; }
+    .ledger td.amount { text-align: right; font-weight: 700; font-variant-numeric: tabular-nums; }
+    .amount-in { color: var(--green-700); }
+    .amount-out { color: var(--red); }
+    .section-title {
+      font-family: var(--font-display);
+      font-size: 15px;
+      color: var(--ink);
+      margin: 34px 0 12px;
+      font-weight: 800;
+      display: flex;
+      align-items: center;
+      gap: 8px;
     }
-    .ledger th { font-size: 12px; color: #999; font-weight: 600; }
-    .ledger td.amount { text-align: right; font-weight: 600; font-variant-numeric: tabular-nums; }
-    .amount-in { color: #1B8A4B; }
-    .amount-out { color: #C0392B; }
-    .section-title { font-size: 14px; color: #888; margin: 32px 0 10px; font-weight: 600; }
-    .empty { color: #aaa; padding: 20px 0; text-align: center; }
+    .section-title::before {
+      content: "";
+      width: 16px;
+      height: 16px;
+      background: var(--star) center/contain no-repeat;
+      flex-shrink: 0;
+    }
+    .empty { color: var(--muted); padding: 22px 0; text-align: center; }
+
+    /* ---- 검색창 ---- */
+    .search-bar { display: flex; gap: 10px; margin-bottom: 24px; }
+    .search-bar input { margin-bottom: 0; }
+    .search-bar button { width: auto; margin-bottom: 0; white-space: nowrap; padding-left: 22px; padding-right: 22px; }
+
+    /* ---- 상품 목록 (하트마켓 스타일) ---- */
+    .product-list { display: flex; flex-direction: column; gap: 0; }
+    .product-card {
+      display: flex;
+      align-items: center;
+      gap: 15px;
+      padding: 16px 6px;
+      border-bottom: 1px solid var(--line);
+      text-decoration: none;
+      color: var(--ink);
+    }
+    .product-card:hover { background-color: #faf6ec; }
+    .product-thumb {
+      width: 84px;
+      height: 84px;
+      object-fit: cover;
+      border-radius: 12px;
+      border: 1px solid var(--line);
+      flex-shrink: 0;
+    }
+    .product-thumb-placeholder {
+      background-color: var(--cream-dark);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .product-thumb-placeholder::after {
+      content: "";
+      width: 34px; height: 34px;
+      background: var(--star) center/contain no-repeat;
+      opacity: 0.4;
+    }
+    .product-body { flex: 1; min-width: 0; }
+    .product-title { font-weight: 600; font-size: 16px; margin-bottom: 4px; }
+    .product-price { font-family: var(--font-display); font-weight: 800; font-size: 19px; color: var(--ink); }
+    .product-meta { font-size: 12.5px; color: var(--muted); margin-top: 4px; }
+
+    /* ---- 떠 있는 등록 버튼 ---- */
+    .fab {
+      position: fixed;
+      right: 28px;
+      bottom: 28px;
+      width: 58px;
+      height: 58px;
+      border-radius: 50%;
+      background: var(--red);
+      color: #fff;
+      font-size: 30px;
+      line-height: 58px;
+      text-align: center;
+      text-decoration: none;
+      box-shadow: 0 6px 18px rgba(190, 75, 75, 0.45);
+      z-index: 15;
+    }
+    .fab:hover { background: var(--red-dark); color: #fff; }
+
+    /* ---- 메신저 ---- */
+    .chat-log {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      height: 340px;
+      overflow-y: auto;
+      padding: 16px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background-color: #faf6ec;
+      margin-bottom: 12px;
+    }
+    .bubble-row { display: flex; gap: 8px; align-items: flex-end; max-width: 100%; }
+    .bubble-row.me { justify-content: flex-end; }
+    .avatar {
+      width: 34px; height: 34px;
+      border-radius: 50%;
+      background: var(--green-500);
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      flex-shrink: 0;
+    }
+    .bubble-col { display: flex; flex-direction: column; max-width: 72%; }
+    .bubble-name { font-size: 11.5px; color: var(--muted); margin: 0 0 3px 3px; }
+    .bubble {
+      padding: 10px 14px;
+      border-radius: 18px;
+      font-size: 14.5px;
+      line-height: 1.45;
+      word-break: break-word;
+      white-space: pre-wrap;
+    }
+    .bubble-row.other .bubble {
+      background: #fff;
+      border: 1px solid var(--line);
+      border-bottom-left-radius: 5px;
+      color: var(--ink);
+    }
+    .bubble-row.me .bubble {
+      background: var(--red);
+      color: #fff;
+      border-bottom-right-radius: 5px;
+      max-width: 72%;
+    }
+    .chat-time { font-size: 10.5px; color: var(--muted); margin: 0 4px; align-self: flex-end; }
+    .chat-bar { display: flex; gap: 10px; }
+    .chat-bar input { margin-bottom: 0; }
+    .chat-bar button { width: auto; margin-bottom: 0; padding-left: 22px; padding-right: 22px; }
+
+    /* ---- 쪽지함 목록 ---- */
+    .thread-list { display: flex; flex-direction: column; }
+    .thread-item {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 15px 6px;
+      border-bottom: 1px solid var(--line);
+      text-decoration: none;
+      color: var(--ink);
+    }
+    .thread-item:hover { background-color: #faf6ec; }
+    .thread-item .name { font-weight: 600; font-size: 16px; }
+
+    /* ---- 라디오 그룹 (신고 등) ---- */
+    .radio-group { display: flex; gap: 20px; margin-bottom: 20px; font-weight: normal; }
+    .radio-group label { display: flex; align-items: center; gap: 6px; }
+    .radio-group input { width: auto; margin: 0; }
+
+    /* ---- 관리자 테이블 ---- */
+    .admin-table { width: 100%; border-collapse: collapse; margin-bottom: 30px; font-size: 14px; }
+    .admin-table th, .admin-table td { text-align: left; padding: 9px 10px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+    .admin-table th { background-color: #faf6ec; font-weight: 700; }
+    .admin-table form { display: inline-block; margin: 0 4px 0 0; }
+    .admin-table input, .admin-table button { width: auto; margin-bottom: 0; padding: 7px 11px; font-size: 14px; }
+
+    /* ---- 상태 배지 ---- */
+    .badge { display: inline-block; padding: 3px 9px; border-radius: 12px; font-size: 12px; font-weight: 700; background-color: var(--cream-dark); color: var(--ink); }
+    .badge-blocked, .badge-suspended { background-color: #f3d4d1; color: var(--red-dark); }
+
+    @media (max-width: 600px) {
+      .container { padding: 24px 18px; margin: 16px 12px 80px; border-radius: 12px; }
+      .hero h1 { font-size: 36px; }
+    }
   </style>
 </head>
 <body>
   <nav>
     <div class="nav-inner">
-      <a href="{{ url_for('dashboard') if session.get('user_id') else url_for('login') }}" class="nav-brand">🛍️ My Market</a>
+      <a href="{{ url_for('dashboard') if session.get('user_id') else url_for('login') }}" class="nav-brand">
+        <svg class="brand-star" viewBox="0 0 24 24"><path d="M12 0C12 6 13 11 24 12 13 13 12 18 12 24 12 18 11 13 0 12 11 11 12 6 12 0Z"/></svg>
+        MY MARKET
+      </a>
       <div class="nav-links">
         {% if session.get('user_id') %}
           <a href="{{ url_for('dashboard') }}">대시보드</a>

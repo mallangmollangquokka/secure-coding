@@ -3,18 +3,38 @@ document.addEventListener('DOMContentLoaded', function () {
   if (!dmDiv) return;
 
   var roomId = dmDiv.dataset.roomId;
+  var other = dmDiv.dataset.other || '';
   var socket = io();
 
   socket.on('connect', function () {
     socket.emit('join_dm', { room_id: roomId });
   });
 
-  socket.on('dm_message', function (data) {
+  function appendBubble(username, message) {
     var messages = document.getElementById('dm_messages');
-    var item = document.createElement('li');
-    item.textContent = data.username + ': ' + data.message;
-    messages.appendChild(item);
-    window.scrollTo(0, document.body.scrollHeight);
+    var mine = (username !== other);  // 1:1 대화: 상대가 아니면 내 메시지
+    var row = document.createElement('div');
+    row.className = 'bubble-row ' + (mine ? 'me' : 'other');
+
+    var bubble = document.createElement('div');
+    bubble.className = 'bubble';
+    bubble.textContent = message;  // textContent로 삽입 → XSS 방지
+
+    if (mine) {
+      row.appendChild(bubble);
+    } else {
+      var avatar = document.createElement('div');
+      avatar.className = 'avatar';
+      avatar.textContent = (username || '?').charAt(0);
+      row.appendChild(avatar);
+      row.appendChild(bubble);
+    }
+    messages.appendChild(row);
+    messages.scrollTop = messages.scrollHeight;
+  }
+
+  socket.on('dm_message', function (data) {
+    appendBubble(data.username, data.message);
   });
 
   socket.on('rate_limited', function () {

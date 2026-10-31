@@ -3,12 +3,15 @@
 {% block content %}
 <h2>쪽지함</h2>
 {% if partners %}
-<ul>
+<div class="thread-list">
   {% for p in partners %}
-    <li><a href="{{ url_for('dm_thread', user_id=p.id) }}">{{ p.username }}</a></li>
+    <a class="thread-item" href="{{ url_for('dm_thread', user_id=p.id) }}">
+      <div class="avatar">{{ p.username[:1] }}</div>
+      <div class="name">{{ p.username }}</div>
+    </a>
   {% endfor %}
-</ul>
+</div>
 {% else %}
-<p>주고받은 쪽지가 없습니다.</p>
+<p class="empty">주고받은 쪽지가 없습니다.</p>
 {% endif %}
 {% endblock %}

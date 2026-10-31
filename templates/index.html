@@ -1,6 +1,17 @@
 {% extends "base.html" %}
 {% block title %}환영합니다{% endblock %}
 {% block content %}
-<h1>My Market에 오신 것을 환영합니다</h1>
-<p><a href="{{ url_for('login') }}">로그인</a> 또는 <a href="{{ url_for('register') }}">회원가입</a> 해주세요.</p>
+<div class="hero">
+  <div class="hero-stars">
+    <svg viewBox="0 0 24 24"><path d="M12 0C12 6 13 11 24 12 13 13 12 18 12 24 12 18 11 13 0 12 11 11 12 6 12 0Z"/></svg>
+    <svg viewBox="0 0 24 24"><path d="M12 0C12 6 13 11 24 12 13 13 12 18 12 24 12 18 11 13 0 12 11 11 12 6 12 0Z"/></svg>
+    <svg viewBox="0 0 24 24"><path d="M12 0C12 6 13 11 24 12 13 13 12 18 12 24 12 18 11 13 0 12 11 11 12 6 12 0Z"/></svg>
+  </div>
+  <h1>MY MARKET</h1>
+  <p>믿을 수 있는 중고 거래</p>
+</div>
+<div style="text-align:center; margin-top:28px; display:flex; gap:12px; justify-content:center;">
+  <a href="{{ url_for('login') }}" style="text-decoration:none"><button type="button" style="width:auto; padding-left:32px; padding-right:32px;">로그인</button></a>
+  <a href="{{ url_for('register') }}" style="text-decoration:none"><button type="button" style="width:auto; padding-left:32px; padding-right:32px; background:var(--green-700);">회원가입</button></a>
+</div>
 {% endblock %}
