@@ -1,15 +1,14 @@
-# Tiny Second-hand Shopping Platform — 상세 설계 스펙 (v2, 실제 코드 확인 후 작성)
+# Tiny Second-hand Shopping Platform — 상세 설계 스펙
 
-> 이 문서는 `ugonfor/secure-coding` 저장소의 **실제 `app.py`, `templates/*.html`, `enviroments.yaml`을 codeload.github.com으로 직접 받아서 읽고** 작성함.
-> v1(이전 버전)은 코드를 안 읽고 추측으로 쓴 부분이 많아 전량 폐기.
+원본 `ugonfor/secure-coding` 저장소(`app.py`, `templates/*.html`, `environment.yaml`)를 기준으로 작성한 설계 문서입니다.
 
 ---
 
-## 0. 기존 코드 원본 그대로 정리 (사실관계, 추측 없음)
+## 0. 기존 코드 원본 정리
 
 ### 스택
 - Flask + Flask-SocketIO
-- DB: 순수 `sqlite3` (SQLAlchemy는 `enviroments.yaml`에 설치되어 있지만 코드에서 미사용)
+- DB: 순수 `sqlite3` (SQLAlchemy는 `environment.yaml`에 설치되어 있지만 코드에서 미사용)
 - 템플릿: Jinja2, `base.html` 상속 구조. **`|safe` 필터는 어디에도 없음** → 서버사이드 XSS 자동이스케이프는 기본적으로 살아있음
 
 ### 기존 DB 스키마 (원본 그대로, 손대지 않음)
@@ -185,7 +184,7 @@ CREATE TABLE IF NOT EXISTS "transaction" (
 - 회원가입 폼에는 role 선택지 없음 (모든 신규 가입자는 무조건 `role='user'`로 고정, 서버에서 강제)
 - `.env`에 `ADMIN_USERNAME`, `ADMIN_PASSWORD` 정의
 - `init_db()` 실행 시: 해당 username의 유저가 없으면 `role='admin'`으로 신규 생성, 비밀번호는 반드시 bcrypt 해싱 후 저장
-- README에 "관리자 테스트 계정은 .env의 ADMIN_USERNAME/ADMIN_PASSWORD로 로그인" 이라고 명시 (채점자가 바로 확인 가능하게)
+- README에 "관리자 계정은 .env의 ADMIN_USERNAME/ADMIN_PASSWORD로 로그인" 이라고 명시 (처음 보는 사람도 바로 확인 가능하게)
 
 ## 3. 보안 보강 작업 목록 (우선순위 순)
 
@@ -305,7 +304,7 @@ secure-coding-main/
 - **환경변수**: `.env` 파일을 배포 환경에 올리지 않고, Render 대시보드의 Environment Variables에 `SECRET_KEY`, `FLASK_DEBUG=false`, `ADMIN_USERNAME`, `ADMIN_PASSWORD`를 직접 입력
 - **감수하기로 결정한 트레이드오프**: Render 무료 티어는 디스크가 비영속적(ephemeral) — 재배포하거나 컨테이너가 재시작되면 `market.db`와 업로드된 상품 이미지(`static/uploads/products/`)가 초기화될 수 있음. Persistent Disk는 유료 플랜부터 지원됨. 이 프로젝트는 과제 데모/채점 목적이라 **재배포를 자주 하지 않는 선에서 이 리스크를 감수**하기로 결정 (데이터베이스를 Postgres로 옮기는 등의 대응은 하지 않음)
 - 무료 티어는 15분 무요청 시 슬립 → 첫 요청 시 최대 ~60초 콜드스타트 발생. README에 안내 문구 추가
-- 배포용 requirements와 로컬 개발용 `enviroments.yaml`(conda)을 병행 제공, README에 두 설치 방법 모두 안내
+- 배포용 requirements와 로컬 개발용 `environment.yaml`(conda)을 병행 제공, README에 두 설치 방법 모두 안내
 
 ---
 

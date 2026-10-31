@@ -28,19 +28,19 @@ python app.py
 
 서버가 뜨면 `http://127.0.0.1:5000` 으로 접속합니다.
 
-### 방법 B. conda (enviroments.yaml)
+### 방법 B. conda (environment.yaml)
 
 ```bash
 git clone https://github.com/mallangmollangquokka/secure-coding.git
 cd secure-coding
-conda env create -f enviroments.yaml
+conda env create -f environment.yaml
 conda activate secure_coding
 cp .env.example .env
 # .env 파일을 열어 아래 "env 설정 안내"대로 값을 채운 뒤
 python app.py
 ```
 
-`enviroments.yaml`에는 `requirements.txt`와 동일한 패키지·버전이 명시되어 있어 두 방법 모두 같은 의존성으로 실행됩니다.
+`environment.yaml`에는 `requirements.txt`와 동일한 패키지·버전이 명시되어 있어 두 방법 모두 같은 의존성으로 실행됩니다.
 
 ## .env 설정 안내
 
@@ -75,7 +75,7 @@ cp .env.example .env
 
 `.env`의 `ADMIN_USERNAME` / `ADMIN_PASSWORD`로 일반 로그인 화면에서 로그인하면 관리자 계정으로 접속됩니다. 로그인 후 상단 네비게이션에 "관리자" 링크가 노출되며, `/admin`에서 신고 내역·자동조치 내역·회원/상품 목록 조회 및 정지·차단·잔액지급·복구 등의 관리 기능을 사용할 수 있습니다.
 
-## 채점자를 위한 기능 확인 가이드
+## 기능 확인 가이드
 
 일부 기능은 계정 1개만으로는 확인이 어렵습니다. 아래 순서대로 확인하는 것을 권장합니다.
 
@@ -100,4 +100,3 @@ cp .env.example .env
 
 - `spec.md` — 상세 설계 스펙 (DB 스키마, 라우트별 요구사항 등)
 - `secure_coding_checklist.csv` — 보안 점검 체크리스트
-- `phase1_prompt.md` / `Phase2a_prompt.md` / `Phhase2bc prompt.md` — 단계별(Phase 1 / 2A / 2B+2C) 구현 지시서. 어떤 순서로, 어떤 요구사항에 맞춰 기능이 추가되었는지 확인할 때 참고할 수 있습니다.
